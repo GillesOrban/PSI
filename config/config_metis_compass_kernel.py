@@ -16,12 +16,12 @@ _tmp_dir = '/Users/orban/Projects/METIS/4.PSI/psi_github/data/'
 conf = dict(
 
     npupil = 256, #285,                        # number of pixels of the pupil
-    det_size = 15, #14.875,                    # [lam/D] size of the detector plane array
+    det_size = 15, #14.875,                      # [lam/D] size of the detector plane array
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
-    det_res = 9.3, #4, #9.3,                         # [px/ (lbda/D)] number of pixels per resolution element
-                                               #~4 px in L-band; 9.3 in N-band
+    det_res = 9.3,  #4                       # [px/ (lbda/D)] number of pixels per resolution element
+                                        #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
     instrument = 'CompassSimInstrument',
@@ -33,10 +33,21 @@ conf = dict(
     #    1. mode = 'CVC'  for Classical Vortex Coronagraph
     #    (2. mode = 'RAVC' for Ring Apodized Vortex Coronagraph)
     #    (3. mode = 'APP'  for Apodizing Phase Plate)
-    inst_mode = 'IMG',                  # HCI instrument mode
+    # TODO replace mode name as follows:
+    #   ELT -> IMG_LM or IMG_N
+    #   CVC -> CVC_LM or CVC_N
+    #   RAVC -> RAVC_LM
+    inst_mode = 'ELT',                  # HCI instrument mode
     vc_charge = 2,                      # (CVC and RAVC only) vortex topological charge
     vc_vector = False,                  # (CVC and RAVC only) simulate a vector vortex instead of a scalar one
 
+    asym_stop = True,
+    asym_angle = 180,                   # [optional]
+    asym_width = 0.15,                  # [optional]
+    asym_model_fname = None, #toto.fits.gz',              # [optional]
+    asym_telDiam = 40,
+    asym_nsteps=30, # nb of steps along the pupil diameter
+    asym_tmin=0.5, # transmission min
 
     # _tmp_dir = '/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/'
     #                  'COMPASSPhaseScreens/Test/'
@@ -57,7 +68,7 @@ conf = dict(
     # f_lyot_stop = _tmp_dir+'pupil/ls_CVC_N2_119_dRext=0.0268_dRint=0.09_dRspi=0.0357.fits',
 
     # RAVC LS L-band:
-    f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
+    # f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
 
     # RAVC amptlidue apodization
     f_apodizer = _tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
@@ -67,21 +78,19 @@ conf = dict(
     # ======
     noise = 2  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
     # add_bckg = False,                   # true means background flux and photon noise are added
-    mag = 1.5,                            # star magnitude at selected band
+    mag = 3,                            # star magnitude at selected band
     # mag_ref = 0,                        # reference magnitude for star and background fluxes
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
-    # L-band
-    # wavelength = 3.81e-6, # 11.33e-6, #3.81e-6   ,             # [m] wavelength
-    # flux_zpt = 8.999e+10,  #3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
+    # wavelength = 3.81e-6, #11.33e-6, #3.81e-6   ,             # [m] wavelength
+    # flux_zpt = 8.999e+10, #3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
     # flux_bckg = 8.878e+4, #1.122e8, #8.878e+4,              # [e-/s/pix]
 
-    # N-band
     wavelength = 11.33e-6, #3.81e-6   ,             # [m] wavelength
     flux_zpt = 3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
     flux_bckg = 1.122e8, #8.878e+4,              # [e-/s/pix]
 
-    dit = 0.01,                          # [s] science detector integration time
+    dit = 0.1,                          # [s] science detector integration time
 
     # TODO METIS photometry should be defined in a separate file and the user should not have
     # to provide 'wavelength', 'flux_zpt', 'flux_bckg', but just 'METIS-L' or 'METIS-N' for example.
@@ -126,7 +135,7 @@ conf = dict(
     # =========
     #  PSI
     # =========
-    psi_framerate = 1,           # [Hz] framerate of the psi correction
+    psi_framerate = 10,           # [Hz] framerate of the psi correction
     psi_nb_iter = 60,            # number of iterations.
 
     # How is the PSI estimate process before correction:
@@ -146,8 +155,7 @@ conf = dict(
     psi_filt_radius = 10,          # [lbda/D]
 
     # PSI scaling --- because of unknown scaling factor of NCPA
-    # set to None to let PSI find the scaling
-    ncpa_expected_rms = None, # 100, # 50, #250,        # expected NCPA in [nm] -- 
+    ncpa_expected_rms = 80, #250,        # expected NCPA in [nm]
 
     # ============
     #   NCPA
@@ -155,7 +163,7 @@ conf = dict(
     # ============
     ncpa_dynamic =  False ,
     ncpa_sampling = 100,             # [s] Dyn NCPA sampling
-    ncpa_scaling = 1.,               # scaling factor, if want to increase level
+    ncpa_scaling = 0.,               # scaling factor, if want to increase level
 
     ncpa_folder = '/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/NCPA_Tibor/',
     ncpa_prefix = "DIFF_rep_1_field_",  # NB assumes units are in mm
@@ -174,11 +182,11 @@ conf = dict(
 
     # =============
     #   Water vapour seeing
-    wv = False,
+    wv = True,
     wv_folder = '/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/WaterVapour/phases/',
      #'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVLonly_qacits.fits'
-    wv_cubename = 'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVNonly_qacits.fits', #'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVLonly_qacits.fits',  # NB assume units are in meters
-    # wv_cubename = 'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVLonly_qacits.fits', #,  # NB assume units are in meters
+     # 'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVNonly_qacits.fits'
+    wv_cubename = 'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVNonly_qacits.fits',   # NB assume units are in meters
     wv_sampling = 100,      #[ms] sampling of the cube
     wv_scaling = 1, #1/100,          # scale factor, if want to change the level
     # =============

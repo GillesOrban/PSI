@@ -143,6 +143,12 @@ class Parameters(object):
             self.logger.warn('Setting save results to True')
             self.params.save_results = True
 
+        # Check is asymmetric pupil/lyot stop (kernel WFS). If not, set to None
+        if hasattr(self.params, 'asym_stop') is False:
+            self.params.asym_stop = None
+
+
+
     def compute_parameters(self):
         '''
         Compute some parameters based on the configuration file parameters

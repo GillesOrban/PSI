@@ -150,13 +150,25 @@ class CompassSimInstrument(GenericInstrument):
         self._suffix = conf.turb_suffix
         self._input_folder = conf.turb_folder
 
+        self._inst_mode = conf.inst_mode  # which type of imaging system
+
+        self._asym_stop = conf.asym_stop
+        if self._asym_stop:
+            self._asym_angle = conf.asym_angle
+            self._asym_width = conf.asym_width
         # Aperture definition -- GOX: see also modification later in _setup to cope with slight mismatch with the NCPA maps
         self.aperture = psi_utils.make_COMPASS_aperture(conf.f_aperture,
                                                   npupil=self._size_pupil_grid,
                                                   rot90=True,
                                                   binary=True)(self.pupilGrid)
+        if self._inst_mode == 'ELT' and self._asym_stop:
+            spider_gen = hcipy.make_spider_infinite((0,0),
+                                                    self._asym_angle,
+                                                    self._asym_width)
+            asym_arm = spider_gen(self.pupilGrid)
+            self.aperture *= asym_arm
+
         # self.aperture = np.rot90(self.aperture)
-        self._inst_mode = conf.inst_mode  # which type of imaging system
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
             self._vc_charge = conf.vc_charge
             self._vc_vector = conf.vc_vector
@@ -165,10 +177,17 @@ class CompassSimInstrument(GenericInstrument):
                                                             npupil=self._size_pupil_grid,
                                                             rot90=True)(self.pupilGrid)
             # self.lyot_stop_mask = np.rot90(self.lyot_stop_mask)
-        if self._inst_mode == 'RAVC' or self._inst_mode == 'APP':
+        if self._inst_mode == 'RAVC' : #or self._inst_mode == 'APP':
             self.pupil_apodizer = psi_utils.make_COMPASS_aperture(conf.f_apodizer,
                                                             npupil=self._size_pupil_grid,
                                                             rot90=True)(self.pupilGrid)
+
+        if self._inst_mode != 'ELT' and self._asym_stop:
+            spider_gen = hcipy.make_spider_infinite((0,0),
+                                                    self._asym_angle,
+                                                    self._asym_width)
+            asym_arm = spider_gen(self.pupilGrid)
+            self.lyot_stop_mask *= asym_arm
 
         self.noise = conf.noise
         # if self.noise == 1:
@@ -543,7 +562,7 @@ class CompassSimInstrument(GenericInstrument):
         self._end_time_wfs = self._current_time_ms + timeIdxInMs[-1] + deltaTime
         return phase_cube
 
-    def setNcpaCorrection(self, phase):
+    def setNcpaCorrection(self, phase, integrator=True, leak=1):
         '''
             Apply NCPA correction
 
@@ -552,7 +571,10 @@ class CompassSimInstrument(GenericInstrument):
             phase : numpy ndarray
                 phase correction to be applied
         '''
-        self.phase_ncpa_correction = self.phase_ncpa_correction + phase
+        if integrator:
+            self.phase_ncpa_correction = leak * self.phase_ncpa_correction + phase
+        else:
+            self.phase_ncpa_correction = phase
 
     def synchronizeBuffers(self, wfs_telemetry_buffer, sci_image_buffer):
         '''

@@ -275,6 +275,7 @@ class PsiSensor():
 
 		# Small phase hypothesis
 		ncpa_estimate = pup.electric_field.imag
+		self._efield_estimate = pup.electric_field
 
 		return ncpa_estimate
 

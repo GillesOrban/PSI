@@ -99,7 +99,7 @@ class Parameters(object):
         #  otherwise print a 'warning'
         if self.params.inst_mode == 'CVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC':
+            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_L':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              'Please check the filename').format(self.params.inst_mode))
             # if self.params.band == 'N':
@@ -108,7 +108,7 @@ class Parameters(object):
             #                      ' Please check the filename').format(self.params.inst_mode))
         elif self.params.inst_mode == 'RAVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC':
+            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC_L':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              ' Please check the filename').format(self.params.inst_mode))
             # if self.params.band == 'N':

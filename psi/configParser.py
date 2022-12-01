@@ -1,5 +1,6 @@
 import traceback
 import sys
+import os
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 from .helperFunctions import LazyLogger
 
@@ -48,6 +49,7 @@ class Parameters(object):
         ``wavelength``              - req ?
         ``flux_zpt``                -
         ``flux_bckg``               -
+        ``bandwidth``               - 
         ``ncpa_dynamic``            -
         ``ncpa_sampling``           -
         ``ncpa_scaling``            -
@@ -90,14 +92,14 @@ class Parameters(object):
         '''
             Performs a number of sanity checks on the configuration parameters
         '''
-        # TODO had a check that the Lyot stop is for the correct mode and band
+        # TODO add a check that the Lyot stop is for the correct mode and band
         #       look at the file name and search for strings
 
         # check, based on the band, that the zeropoint is according to defined 'constants'
         #  otherwise print a 'warning'
         if self.params.inst_mode == 'CVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_L':
+            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              'Please check the filename').format(self.params.inst_mode))
             # if self.params.band == 'N':
@@ -106,7 +108,7 @@ class Parameters(object):
             #                      ' Please check the filename').format(self.params.inst_mode))
         elif self.params.inst_mode == 'RAVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC_L':
+            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              ' Please check the filename').format(self.params.inst_mode))
             # if self.params.band == 'N':
@@ -143,11 +145,14 @@ class Parameters(object):
             self.logger.warn('Setting save results to True')
             self.params.save_results = True
 
+        # Set default attributes if not already defined 
         # Check is asymmetric pupil/lyot stop (kernel WFS). If not, set to None
         if hasattr(self.params, 'asym_stop') is False:
             self.params.asym_stop = None
 
 
+        if hasattr(self.params, 'bandwidth') is False:
+            self.params.bandwidth = 0
 
     def compute_parameters(self):
         '''

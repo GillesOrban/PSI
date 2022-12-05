@@ -20,7 +20,7 @@ conf = dict(
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
-    det_res = 9.3, #4, #9.3,                         # [px/ (lbda/D)] number of pixels per resolution element
+    det_res = 4, #9.3, #4, #9.3,                         # [px/ (lbda/D)] number of pixels per resolution element
                                                #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
@@ -85,7 +85,6 @@ conf = dict(
 
     # TODO METIS photometry should be defined in a separate file and the user should not have
     # to provide 'wavelength', 'flux_zpt', 'flux_bckg', but just 'METIS-L' or 'METIS-N' for example.
-    # [GOX]  this should be somewhere else: this is METIS default value and not supposed to be modified
     #           -> move to a 'constants.py' file or something of the like
     # NB: 'band_specs' is not used by the code. Here for reference
     #bands = 'L', #, 'M', 'N1', 'N2'],
@@ -153,7 +152,7 @@ conf = dict(
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)
     # ============
-    ncpa_dynamic =  False ,
+    ncpa_dynamic =  True ,
     ncpa_sampling = 100,             # [s] Dyn NCPA sampling
     ncpa_scaling = 1.,               # scaling factor, if want to increase level
 

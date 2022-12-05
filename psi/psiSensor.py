@@ -79,17 +79,25 @@ class PsiSensor():
 		if self.cfg.params.psi_correction_mode is not 'all':
 			self.logger.info('Building modal basis for projectiong/filtering of the NCPA map')
 			diam = 1
+			radial_cutoff=False
+			reortho=True
+			self._basis_start_idx = 1
 			if self.cfg.params.psi_correction_mode == 'zern':
 			    self.M2C = hcipy.make_zernike_basis(self.cfg.params.psi_nb_modes, diam,
 										 	   self.inst.pupilGrid,
-										 	   self.cfg.params.psi_start_mode_idx)#.orthogonalized
+										 	   self._basis_start_idx, #self.cfg.params.psi_start_mode_idx,
+											   radial_cutoff=radial_cutoff)#.orthogonalized
+
 			if self.cfg.params.psi_correction_mode == 'dh':
 				self.logger.warn('Warning psi_start_mode_idx is ignored')
 				self.M2C = hcipy.make_disk_harmonic_basis(self.inst.pupilGrid,
 													 self.cfg.params.psi_nb_modes,
 													 diam)
-
-			self.C2M = hcipy.inverse_tikhonov(self.M2C.transformation_matrix, 1e-3)
+			if reortho:
+				self.M2C = psi_utils.reorthonormalize(self.M2C, self.inst.aperture)
+			self.M2C_matrix = self.M2C.transformation_matrix[:, self.cfg.params.psi_start_mode_idx - self._basis_start_idx:]
+			self.C2M = hcipy.inverse_tikhonov(self.M2C.transformation_matrix, 1e-3)\
+				[self.cfg.params.psi_start_mode_idx - self._basis_start_idx:, :]
 
 		self._ncpa_modes_integrated = 0 # np.zeros(self.cfg.params.psi_nb_modes)
 		self._amplitude_integrated = 0
@@ -332,7 +340,7 @@ class PsiSensor():
 		else:
 			proj_mask = self.inst.aperture
 		ncpa_modes      = self.C2M.dot(ncpa_estimate * proj_mask)
-		ncpa_estimate  = self.M2C.transformation_matrix.dot(ncpa_modes)
+		ncpa_estimate  = self.M2C_matrix.dot(ncpa_modes) #self.M2C.transformation_matrix.dot(ncpa_modes)
 		return ncpa_estimate, ncpa_modes
 
 	def _propagateSpeckleFields(self, wfs_telemetry_buffer):
@@ -591,7 +599,7 @@ class PsiSensor():
 		# plt.imshow(np.sqrt(I_avg))
 		im, norm = imshow_norm(I_avg, plt.gca(), origin='lower',
 			interval=MinMaxInterval(),
-			stretch=SqrtStretch())
+			stretch=LogStretch())
 		plt.axis('off')
 
 
@@ -633,8 +641,10 @@ class PsiSensor():
 
 		ax = plt.subplot(gs[2, :])
 		if self.cfg.params.psi_correction_mode is not 'all':
+			# mm=np.arange(self.cfg.params.psi_start_mode_idx,
+			# 	self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
 			mm=np.arange(self.cfg.params.psi_start_mode_idx,
-				self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
+				self.cfg.params.psi_nb_modes + self._basis_start_idx)
 			plt.plot(mm, ncpa_modes, label='last NCPA correction')
 			plt.plot(mm, self._ncpa_modes_integrated, c='k', ls='--', label='integrated')
 			# plt.title('Last NCPA modes')

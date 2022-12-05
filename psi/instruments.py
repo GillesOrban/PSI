@@ -195,6 +195,7 @@ class CompassSimInstrument(GenericInstrument):
         if self.noise == 2:
             self.bckg_level = conf.num_photons_bkg
         self.num_photons = conf.num_photons
+        self.bandwidth = conf.bandwidth
 
         # by default include residual turbulence phase screens
         self.include_residual_turbulence = True
@@ -371,7 +372,7 @@ class CompassSimInstrument(GenericInstrument):
 
 
 
-    def grabScienceImages(self, nbOfPastSeconds):
+    def grabScienceImages(self, nbOfPastSeconds, **kwargs):
         '''
             Grab a buffer of science images
 
@@ -403,7 +404,8 @@ class CompassSimInstrument(GenericInstrument):
             self.phase_wv_integrated = 0
             self.nb_wv_integrated = 0
         for i in range(self.nbOfSciImages):
-            image_buffer[i] = self._grabOneScienceImage()
+            image_buffer[i] = self._grabOneScienceImage(bandwidth=self.bandwidth, **kwargs)
+
         if self.include_water_vapour :
             self.phase_wv_integrated /= self.nb_wv_integrated
 
@@ -411,10 +413,20 @@ class CompassSimInstrument(GenericInstrument):
         return image_buffer
 
 
-    def _grabOneScienceImage(self):
+    def _grabOneScienceImage(self, bandwidth=0, npts=11):
         '''
             Compute a single science image: consist of several realisation of the
             residual turbulence (+ NPCA, WV, NCPA_correction)
+
+
+            PARAMETERS
+            bandwidth: float
+                spectral bandwidth. Units are dlambda/lambda.
+                0 by default = monochromatic simulation.
+            npts    : int
+                number of points over the spectral bandwith for polychromatic simulation.
+                Only used if bandwidth is > 0
+
         '''
         # conversion_COMPASSToNm = 1e3
         # conv = conversion_COMPASSToNm * (2 * np.pi / self.wavelength * 1e-9)
@@ -482,15 +494,27 @@ class CompassSimInstrument(GenericInstrument):
         # Forward propagation and calculation of the image for a sequence of phases
         total_phase_cube = hcipy.Field(total_phase_cube, self.pupilGrid)
         # wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture, 1)
-        wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
-        # Setting number of photons
-        # ToDo
-        wf_post_.total_power = self.num_photons * nbOfFrames
-        # Propagation through the instrument
-        # TODO: expose 'prop' and 'coro'
+        if bandwidth == 0:
+            wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
-        self._image_cube = self.optical_model(wf_post_).power.shaped
+            # Setting number of photons
+            # ToDo
+            wf_post_.total_power = self.num_photons * nbOfFrames
+            # Propagation through the instrument
+            # TODO: expose 'prop' and 'coro'
+
+            self._image_cube = self.optical_model(wf_post_).power.shaped
+        else:
+            assert bandwidth > 0 
+            tmp_focal = 0
+            for wlen in np.linspace(1 - bandwidth / 2., 1 + bandwidth / 2., npts):
+                # the phase aberration needs also to be scaled to preserve the same physical OPD
+                wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube / wlen) * self.aperture, wlen)
+                wf_post_.total_power = self.num_photons * nbOfFrames
+                tmp_focal += self.optical_model(wf_post_).power.shaped
+            self._image_cube = tmp_focal / npts
+
         # if vvc:
         # 	image_cube[i] = prop(coro(wf_post_)).power.shaped
         # else:

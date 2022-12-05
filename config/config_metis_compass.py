@@ -20,7 +20,7 @@ conf = dict(
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
-    det_res = 9.3, #4, #9.3,                         # [px/ (lbda/D)] number of pixels per resolution element
+    det_res = 4, #9.3, #4, #9.3,                         # [px/ (lbda/D)] number of pixels per resolution element
                                                #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
@@ -71,19 +71,18 @@ conf = dict(
     # ======
     noise = 2  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
     # add_bckg = False,                   # true means background flux and photon noise are added
-    mag = -1.5 ,#-1.5,                            # star magnitude at selected band
+    mag = 3 ,#-1.5,                            # star magnitude at selected band
     # mag_ref = 0,                        # reference magnitude for star and background fluxes
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
-    wavelength =11.33e-6, #3.81e-6   ,             # [m] wavelength
-    flux_zpt = 3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
-    flux_bckg = 1.122e8, #8.878e+4,              # [e-/s/pix]
-
+    wavelength = 3.81e-6, #11.33e-6, #3.81e-6   ,             # [m] wavelength
+    flux_zpt = 8.999e10, #3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
+    flux_bckg = 8.878e+4, #1.122e8, #8.878e+4,              # [e-/s/pix]
+    bandwidth = 0.4, 
     dit = 0.1,                          # [s] science detector integration time
 
     # TODO METIS photometry should be defined in a separate file and the user should not have
     # to provide 'wavelength', 'flux_zpt', 'flux_bckg', but just 'METIS-L' or 'METIS-N' for example.
-    # [GOX]  this should be somewhere else: this is METIS default value and not supposed to be modified
     #           -> move to a 'constants.py' file or something of the like
     # NB: 'band_specs' is not used by the code. Here for reference
     #bands = 'L', #, 'M', 'N1', 'N2'],
@@ -144,13 +143,13 @@ conf = dict(
     psi_filt_radius = 10,          # [lbda/D]
 
     # PSI scaling --- because of unknown scaling factor of NCPA
-    ncpa_expected_rms = 100, #80, #250,        # expected NCPA in [nm]
+    ncpa_expected_rms = 70, #80, #250,        # expected NCPA in [nm]
 
     # ============
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)
     # ============
-    ncpa_dynamic =  False ,
+    ncpa_dynamic =  True ,
     ncpa_sampling = 100,             # [s] Dyn NCPA sampling
     ncpa_scaling = 1.,               # scaling factor, if want to increase level
 

@@ -78,7 +78,7 @@ conf = dict(
     # ======
     noise = 2  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
     # add_bckg = False,                   # true means background flux and photon noise are added
-    mag = 3,                            # star magnitude at selected band
+    mag = 0, #3,                            # star magnitude at selected band
     # mag_ref = 0,                        # reference magnitude for star and background fluxes
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
@@ -86,9 +86,10 @@ conf = dict(
     # flux_zpt = 8.999e+10, #3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
     # flux_bckg = 8.878e+4, #1.122e8, #8.878e+4,              # [e-/s/pix]
 
-    wavelength = 11.33e-6, #3.81e-6   ,             # [m] wavelength
-    flux_zpt = 3.695e10, #8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
-    flux_bckg = 1.122e8, #8.878e+4,              # [e-/s/pix]
+    wavelength = 11.33e-6, #3.81e-6   ,         # [m] wavelength
+    flux_zpt = 3.695e10, #8.999e+10,            # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
+    flux_bckg = 1.122e8, #8.878e+4,             # [e-/s/pix]
+    bandwidth = 0.2,                            # bandwidth for polychromatic simulations, 0 for monochromatic
 
     dit = 0.1,                          # [s] science detector integration time
 

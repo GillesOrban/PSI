@@ -136,6 +136,16 @@ class KernelSensor():
 		# computation of the pseudo inverse
 		self.phase_tf_inv = Vt.T.dot(np.diag(Sinv)).dot(U.T)
 
+		# define small aperture 
+		nbs = self.cfg.params.asym_nsteps
+		asym_telDiam = self.cfg.params.asym_telDiam
+		step_size = asym_telDiam / nbs
+
+		self._small_aperture = np.zeros((nbs-1, nbs-1))
+		vac_coords = self.kpo.kpi.VAC
+		coords = np.array(vac_coords[:,0:2] / step_size + \
+					(asym_telDiam/2) / step_size, dtype='int')
+		self._small_aperture[list(coords[:,1]-1), list(coords[:,0]-1)] = vac_coords[:,2]
 
 	def computeWavefront(self, img):
 		# TODO empty kpo.CVIS (and other arrays) that use unnecessarily memory
@@ -173,8 +183,8 @@ class KernelSensor():
 						 (asym_telDiam/2) / step_size, dtype='int')
 		phase[list(coords[:,1]-1), list(coords[:,0]-1)] = np.append(0, self._wft)#vac_coords[:,2]
 
-		self._small_aperture = np.zeros((nbs-1, nbs-1))
-		self._small_aperture[list(coords[:,1]-1), list(coords[:,0]-1)] = vac_coords[:,2]
+		# self._small_aperture = np.zeros((nbs-1, nbs-1))
+		# self._small_aperture[list(coords[:,1]-1), list(coords[:,0]-1)] = vac_coords[:,2]
 
 		self.wavefront = phase
 
@@ -202,14 +212,23 @@ class KernelSensor():
 
 	def _initModalBases(self, nbOfModes=100):
 		diam = 1
+		radial_cutoff = False
+
 		self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps - 1)
 		self.M2C_small = hcipy.make_zernike_basis(nbOfModes, diam,
 											 	  self.smallGrid,
-												  4)
+												  4,
+												  radial_cutoff=radial_cutoff)
+		self.M2C_small = psi_utils.reorthonormalize(self.M2C_small, self._small_aperture.flatten())
 		self.C2M_small = hcipy.inverse_tikhonov(self.M2C_small.transformation_matrix, 1e-3)
 
 		self.M2C_large = hcipy.make_zernike_basis(nbOfModes, diam,
-												  self.inst.pupilGrid, 4)
+												  self.inst.pupilGrid, 4,
+												  radial_cutoff=radial_cutoff)
+		# binary_aperture = np.copy(self.inst.aperture)
+		# binary_aperture[self.inst.aperture >=0.5] = 1
+		# binary_aperture[self.inst.aperture < 0.5] = 0
+		self.M2C_large = psi_utils.reorthonormalize(self.M2C_large, self.inst.aperture)
 		self.C2M_large =hcipy.inverse_tikhonov(self.M2C_large.transformation_matrix, 1e-3)
 
 	def _modalFilteringOnEP(self, ncpa_estimate):

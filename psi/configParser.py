@@ -116,20 +116,22 @@ class Parameters(object):
             #         self.logger(('Lyot stop fname does not seem to match for {0}.'
             #                      ' Please check the filename').format(self.params.inst_mode))
 
-        assert self.params.det_size >= self.params.psi_filt_radius
+        if hasattr(self.params, 'psi_filt_radius'):
+            assert self.params.det_size >= self.params.psi_filt_radius
 
-        # PSI correction mode checks
-        if self.params.psi_correction_mode == 'zern':
-            if hasattr(self.params, 'psi_nb_modes') is False:
-                default_nb_modes = 20
-                self.logger.warn('Setting default psi_nb_modes to {0}'.\
-                    format(default_nb_modes))
-                self.params.psi_nb_modes = default_nb_modes
-            if hasattr(self.params, 'psi_start_mode_idx') is False:
-                default_start_idx = 4
-                self.logger.warn('Setting default psi_start_mode_idx to {0}'.\
-                    format(default_start_idx))
-                self.params.psi_start_mode_idx = default_start_idx
+        if hasattr(self.params, 'psi_correction_mode'):
+            # PSI correction mode checks
+            if self.params.psi_correction_mode == 'zern':
+                if hasattr(self.params, 'psi_nb_modes') is False:
+                    default_nb_modes = 20
+                    self.logger.warn('Setting default psi_nb_modes to {0}'.\
+                        format(default_nb_modes))
+                    self.params.psi_nb_modes = default_nb_modes
+                if hasattr(self.params, 'psi_start_mode_idx') is False:
+                    default_start_idx = 4
+                    self.logger.warn('Setting default psi_start_mode_idx to {0}'.\
+                        format(default_start_idx))
+                    self.params.psi_start_mode_idx = default_start_idx
 
 
 

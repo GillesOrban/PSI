@@ -16,7 +16,7 @@ _tmp_dir = 'data/'
 conf = dict(
 
     npupil = 256, #285,                        # number of pixels of the pupil
-    det_size = 15, #14.875,                      # [lam/D] size of the detector plane array
+    det_size = 15, #14.875,                      # [lam/D] radial size of the detector plane array
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
@@ -25,6 +25,7 @@ conf = dict(
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
     instrument = 'HcipySimInstrument',
+    pupil = 'CIRC',   # 'ERIS' or 'ELT', or 'CIRC'
 
     # =======
     #   Observing Modes
@@ -74,10 +75,10 @@ conf = dict(
     # =========
     asym_stop = True,
     asym_angle = 90,                   # [optional]
-    asym_width = 0.1,                  # [optional]
+    asym_width = 0.15,                  # [optional]
     asym_model_fname = None, #toto.fits.gz',              # [optional]
-    asym_telDiam = 40,
-    asym_nsteps=40, # nb of steps along the pupil diameter
+    # asym_telDiam = 40,
+    asym_nsteps=33, # nb of steps along the pupil diameter
     asym_tmin=0.5, # transmission min
 
     # # =========
@@ -116,8 +117,7 @@ conf = dict(
 
     # =============
     #   Residual turbulence
-    #       Only in simulation with CompassSimInstrument (offline)
-    # residual_turbulence = False,  # TODO to implement in the configParser and in the inst
+    residual_turbulence = False,  # TODO to implement in the configParser and in the inst
     # r0 = 0.15,
     # L0 = 25,
     # nmodes = 500,

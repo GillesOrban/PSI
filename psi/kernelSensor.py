@@ -93,7 +93,10 @@ class KernelSensor():
         self.inst = eval(self.cfg.params.instrument)(self.cfg.params)
         # importlib.import_module
         self.inst.build_optical_model()
-        self._Dtel = self.cfg.params.asym_telDiam
+        if hasattr(self.cfg.params, 'tel_diam'):
+            self._Dtel = self.cfg.params.tel_diam
+        else:
+            self._Dtel = self.cfg.params.asym_telDiam
         self._pscale = (self.cfg.params.wavelength / self._Dtel) * 206264.8 / self.cfg.params.det_res * 1e3 # [mas / px]
 
         #pscale = 4.91168055, #5.32359, #5.47,                      # pixel scale in mas/pix
@@ -120,15 +123,24 @@ class KernelSensor():
         # Create model
         pscale = self._Dtel / self.inst._size_pupil_grid
         step= self._Dtel / self.cfg.params.asym_nsteps # [meter] # 0.3
+        # Ensure that the step is an even integer number of pixels (see 'create_discret_model' help)
+        step_pix = np.round(step / pscale)
+        if np.mod(step_pix, 2):
+            step_pix -=1
+        self._step = step_pix * pscale # force step to be an integer nb of pixels
+        self._nsteps = int(self._Dtel / self._step)
+        if np.mod(self._nsteps, 2) == 0:
+            self._nsteps += 1
+        self.logger.warn('Final number of subap on diam is {0} with a pitch of {1:.3f}'.format(self._nsteps, self._step))
         tmin = self.cfg.params.asym_tmin # 0.1 # cut-off value for transmissive or not
         model  = xara.core.create_discrete_model(self.inst.aperture.shaped,
                                                  pscale,
-                                                 step,
+                                                 self._step,
                                                  binary=False,
                                                  tmin=tmin)
         # bmax : safeguard that tells the KPO data structure creation function to
         #         discard any resulting baseline that would be greater than the provided value
-        kpi = xara.KPI(array=model, bmax=self._Dtel*1.1) # TBC -> bmax needed ??
+        kpi = xara.KPI(array=model, bmax=self._Dtel) # TBC -> bmax needed ??
 
         # Save model
         self.logger.info('Saving KPI model to {0}'.format(fname))
@@ -157,15 +169,15 @@ class KernelSensor():
         self.phase_tf_inv = Vt.T.dot(np.diag(Sinv)).dot(U.T)
 
         # define small aperture 
-        nbs = self.cfg.params.asym_nsteps
-        asym_telDiam = self.cfg.params.asym_telDiam
-        step_size = asym_telDiam / nbs
+        nbs = self._nsteps #self.cfg.params.asym_nsteps
+        asym_telDiam = self._Dtel #self.cfg.params.asym_telDiam
+        # step_size = asym_telDiam / nbs
 
-        self._small_aperture = np.zeros((nbs-1, nbs-1))
+        self._small_aperture = np.zeros((nbs, nbs))
         vac_coords = self.kpo.kpi.VAC
-        coords = np.array(vac_coords[:,0:2] / step_size + \
-                    (asym_telDiam/2) / step_size, dtype='int')
-        self._small_aperture[list(coords[:,1]-1), list(coords[:,0]-1)] = vac_coords[:,2]
+        coords = np.array(vac_coords[:,0:2] / self._step + \
+                    (asym_telDiam/2) / self._step, dtype='int')
+        self._small_aperture[list(coords[:,1]), list(coords[:,0])] = vac_coords[:,2]
 
     def computeWavefront(self, img):
         # TODO empty kpo.CVIS (and other arrays) that use unnecessarily memory
@@ -191,17 +203,26 @@ class KernelSensor():
         '''
             TODO if asym_nsteps is odd, phase should be dim nbs x nbs
         '''
-        asym_telDiam = self.cfg.params.asym_telDiam
-        asym_nsteps = self.cfg.params.asym_nsteps
+        asym_telDiam = self._Dtel #self.cfg.params.asym_telDiam
+        asym_nsteps = self._nsteps #self.cfg.params.asym_nsteps
 
-        step_size = asym_telDiam / asym_nsteps
+        # step_size = asym_telDiam / asym_nsteps
+
+        coords = np.array(vac_coords[:,0:2] / self._step + \
+                         (asym_telDiam/2) / self._step, dtype='int')
 
         nbs=asym_nsteps
-        phase = np.zeros((nbs-1, nbs-1))
+        # if np.mod(nbs, 2):
+        #     '''if odd'''
+        #     phase = np.zeros((nbs, nbs))
+        #     phase[list(coords[:,1]), list(coords[:,0])] = np.append(0, self._wft)#vac_coords[:,2]
+        # else:
+        # phase = np.zeros((nbs-1, nbs-1))
+        # phase[list(coords[:,1]-1), list(coords[:,0]-1)] = np.append(0, self._wft)#vac_coords[:,2]
+        phase = np.zeros((nbs, nbs))
+        phase[list(coords[:,1]), list(coords[:,0])] = np.append(0, self._wft)
 
-        coords = np.array(vac_coords[:,0:2] / step_size + \
-                         (asym_telDiam/2) / step_size, dtype='int')
-        phase[list(coords[:,1]-1), list(coords[:,0]-1)] = np.append(0, self._wft)#vac_coords[:,2]
+
 
         # self._small_aperture = np.zeros((nbs-1, nbs-1))
         # self._small_aperture[list(coords[:,1]-1), list(coords[:,0]-1)] = vac_coords[:,2]

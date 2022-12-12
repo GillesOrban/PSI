@@ -801,15 +801,17 @@ class HcipySimInstrument(GenericInstrument):
             because of physical simulation of the residual atmospheric turbulence.
         '''
         self.norm_telDiam = True
-        self.diam = 1 # 40m
-        super().__init__(conf, self.diam)
+
+        super().__init__(conf, conf.tel_diam)
+
         self.logger = logger
 
         if type(conf) == dict:
             conf = SimpleNamespace(**conf)
 
         self._setup(conf)
-        self._setup_modal_ao()
+        if conf.residual_turbulence:
+            self._setup_modal_ao()
         
         start_time = 0
         self._current_time_ms = start_time
@@ -824,9 +826,18 @@ class HcipySimInstrument(GenericInstrument):
 
 
     def _setup(self, conf):
-        self.aperture = hcipy.aperture.make_elt_aperture(normalized=True)(self.pupilGrid)
-        self.decimation = 10  #conf.ao_frame_decimation
+        self.diam = conf.tel_diam
+        if conf.pupil == 'ELT':
+            self.aperture = hcipy.aperture.make_elt_aperture(normalized=False)(self.pupilGrid)
+        elif conf.pupil == 'ERIS':
+            self.aperture = hcipy.aperture.make_vlt_aperture(normalized=False,
+                                                             telescope='ut4',
+                                                             with_spiders=True,
+                                                             with_M3_cover=True)(self.pupilGrid)
+        elif conf.pupil == 'CIRC':
+            self.aperture = hcipy.aperture.make_circular_aperture(self.diam)(self.pupilGrid)
 
+        self.decimation = 10  #conf.ao_frame_decimation
 
         self.wfs_exptime = 1 / conf.ao_framerate
         # self.ao_frame_decimation = conf.ao_frame_decimation
@@ -844,7 +855,7 @@ class HcipySimInstrument(GenericInstrument):
         if self._inst_mode == 'ELT' and self._asym_stop:
             spider_gen = hcipy.make_spider_infinite((0,0),
                                                     self._asym_angle,
-                                                    self._asym_width)
+                                                    self._asym_width * self.diam)
             asym_arm = spider_gen(self.pupilGrid)
             self.aperture *= asym_arm
 

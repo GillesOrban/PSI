@@ -152,9 +152,23 @@ class Parameters(object):
         if hasattr(self.params, 'asym_stop') is False:
             self.params.asym_stop = None
 
+        if self.params.asym_stop == True:
+            self.params.asym_nsteps <= 2 * self.params.det_size  # pitch cannot be finer than set by field-of-view
 
         if hasattr(self.params, 'bandwidth') is False:
             self.params.bandwidth = 0
+
+
+        if self.params.instrument == 'HcipySimInstrument':
+            if self.params.pupil == 'ELT':
+                self.params.tel_diam = 40
+            elif self.params.pupil == 'ERIS':
+                self.params.tel_diam = 8.1196  # UT4
+            elif self.params.pupil == 'CIRC':
+                self.params.tel_diam = 8
+            else:
+                raise ConfigurationError('Pupil does not exist')
+
 
     def compute_parameters(self):
         '''

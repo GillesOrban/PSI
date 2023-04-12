@@ -18,7 +18,7 @@ import importlib
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 import psi.psi_utils as psi_utils
 from .configParser import loadConfiguration
-from .instruments import  CompassSimInstrument, DemoCompassSimInstrument
+from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
 from .helperFunctions import LazyLogger, timeit, build_directory_name, copy_cfgFileToDir
 
 from astropy.visualization import imshow_norm,\

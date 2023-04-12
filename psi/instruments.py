@@ -35,9 +35,11 @@ class GenericInstrument():
                                                self._focal_grid_size,
                                                pupil_diameter=diam,
                                                reference_wavelength=1,
-                                               focal_length=1)
-
-        self._prop = hcipy.FraunhoferPropagator(self.pupilGrid, self.focalGrid)
+                                               focal_length=diam)
+        # GOX 08/03/2023: adding kwarg 'focal_length=diam'
+        self._prop = hcipy.FraunhoferPropagator(self.pupilGrid,
+                                                self.focalGrid,
+                                                focal_length=diam)
 
 
         self.phase_ncpa = hcipy.Field(0.0, self.pupilGrid)         # knowledge only in Simulation
@@ -622,6 +624,11 @@ class CompassSimInstrument(GenericInstrument):
             Note:
                 wfs_telemetry_buffer & sci_image_buffer are actually not used here.
                 To be realistic, one could correlate the tip-tilt in both to sync them.
+
+            Returns
+            -----------
+            telemetry_indexing : list
+                list of start and stop index in the wfs telemetry buffer for the successive science image
         '''
         if self._start_time_wfs != self._start_time_sci_buffer:
             self.logger.warn('Start buffers not sync')
@@ -795,6 +802,9 @@ class DemoCompassSimInstrument(CompassSimInstrument):
         return phase_cube
 
 class HcipySimInstrument(GenericInstrument):
+    '''
+        TODO check instrument type in conf.params corresponds to the class name ... ?
+    '''
     def __init__(self, conf, logger=LazyLogger('HcipySim')):
         '''
             Physical dimension is requested here for the aperture definition,
@@ -810,8 +820,7 @@ class HcipySimInstrument(GenericInstrument):
             conf = SimpleNamespace(**conf)
 
         self._setup(conf)
-        if conf.residual_turbulence:
-            self._setup_modal_ao()
+
         
         start_time = 0
         self._current_time_ms = start_time
@@ -826,6 +835,9 @@ class HcipySimInstrument(GenericInstrument):
 
 
     def _setup(self, conf):
+        '''
+        TODO constructing asymmetric aperture should be 'generic' 
+        '''
         self.diam = conf.tel_diam
         if conf.pupil == 'ELT':
             self.aperture = hcipy.aperture.make_elt_aperture(normalized=False)(self.pupilGrid)
@@ -837,7 +849,9 @@ class HcipySimInstrument(GenericInstrument):
         elif conf.pupil == 'CIRC':
             self.aperture = hcipy.aperture.make_circular_aperture(self.diam)(self.pupilGrid)
 
-        self.decimation = 10  #conf.ao_frame_decimation
+
+        self.nb_ao_per_sci = conf.nb_ao_frames_per_science
+        self.decimation = conf.ao_frame_decimation #10
 
         self.wfs_exptime = 1 / conf.ao_framerate
         # self.ao_frame_decimation = conf.ao_frame_decimation
@@ -853,11 +867,23 @@ class HcipySimInstrument(GenericInstrument):
             self._asym_width = conf.asym_width
 
         if self._inst_mode == 'ELT' and self._asym_stop:
-            spider_gen = hcipy.make_spider_infinite((0,0),
+            # spider_gen = hcipy.make_spider_infinite((0,0),
+            #                                         self._asym_angle,
+            #                                         self._asym_width * self.diam)
+            # asym_arm = spider_gen(self.pupilGrid)
+            # self.aperture *= asym_arm
+
+            spider_gen = hcipy.make_spider_infinite((-2,0),
                                                     self._asym_angle,
                                                     self._asym_width * self.diam)
             asym_arm = spider_gen(self.pupilGrid)
             self.aperture *= asym_arm
+
+            spider_gen_2 = hcipy.make_spider_infinite((0,-2),
+                                                    self._asym_angle+90,
+                                                    self._asym_width * self.diam)
+            asym_arm_2 = spider_gen_2(self.pupilGrid)
+            self.aperture *= asym_arm_2
 
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
             self.logger.warning('CVC / RAVC not implemented')
@@ -887,35 +913,32 @@ class HcipySimInstrument(GenericInstrument):
         self.num_photons = conf.num_photons
         self.bandwidth = conf.bandwidth
 
+        self._setup_modal_basis()
+        
         # by default include residual turbulence phase screens
-        self.include_residual_turbulence = True
         self.phase_residual = hcipy.Field(0.0, self.pupilGrid) 
+        self.include_residual_turbulence = False
+        if conf.residual_turbulence:
+            self.include_residual_turbulence = True
+            self._setup_modal_ao()
 
         self.ncpa_scaling = conf.ncpa_scaling
-        # self._initialize_ncpa()
+        self._initialize_ncpa(conf.ncpa_coefficients)
         # self.ncpa_dynamic = conf.ncpa_dynamic
         # if self.ncpa_dynamic:
         #     self.ncpa_sampling = conf.ncpa_sampling
         self.include_water_vapour = False
         pass
 
-    def _setup_modal_ao(self):
-        r0=0.15           # [m]
-        L0 = 25           # [m]  
-        wind_velocity = 8 # [m/s]
-        lag = 3          # number of time step between measurement and correction
-        self.sampling_time=1e-3 # [s] time step or sampling time 
-        nmodes = 500
-
+    def _setup_modal_basis(self):
         pupil_grid = self.pupilGrid
-        # Define some AO behaviour
-        # ao_modes = make_gaussian_influence_functions(pupil_grid, ao_actuators, 1.0 / ao_actuators)	# Create an object containing all the available DM pistons, 1.0 to
-        # ao_modes = ModeBasis([mode * aperture for mode in ao_modes])
-        # transformation_matrix = ao_modes.transformation_matrix
-        # reconstruction_matrix = inverse_tikhonov(transformation_matrix, reconstruction_normalisation)
-        
+        if self._inst_mode == 'ELT':
+            self._nmodes = 1500
+        else:
+            self._nmodes = 500
+
         self.logger.info('Generating modal basis')
-        zernike_modes = hcipy.make_zernike_basis(nmodes + 1, self.diam, pupil_grid, radial_cutoff=False)
+        zernike_modes = hcipy.make_zernike_basis(self._nmodes + 1, self.diam, pupil_grid, radial_cutoff=False)
         # mask = self.aperture 
         # mask[self.aperture >=0.7] = 1
         # mask[self.aperture<0.7] = 0
@@ -924,10 +947,28 @@ class HcipySimInstrument(GenericInstrument):
 
         self.ao_modes = hcipy.ModeBasis([mode * self.aperture for mode in zernike_modes]) # could also do some normalization
 
+
+    def _setup_modal_ao(self):
+        r0 = 0.15           # [m]
+        L0 = 25           # [m]  
+        wind_velocity = 16 # [m/s]   # [GOX] : very fast wind speed for fast PSI simulation 
+        lag = 3          # number of time step between measurement and correction
+        self.sampling_time = 1e-3 # [s] time step or sampling time 
+        self._decimals = int(- np.log10(self.sampling_time)) + 1 # Precision use for list indexing, see self._buffer_time_index.index
+        # nmodes = 500
+        pupil_grid = self.pupilGrid
+
+        # Define some AO behaviour
+        # ao_modes = make_gaussian_influence_functions(pupil_grid, ao_actuators, 1.0 / ao_actuators)	# Create an object containing all the available DM pistons, 1.0 to
+        # ao_modes = ModeBasis([mode * aperture for mode in ao_modes])
+        # transformation_matrix = ao_modes.transformation_matrix
+        # reconstruction_matrix = inverse_tikhonov(transformation_matrix, reconstruction_normalisation)
+        
+
         # Instantiate an atmosphere class. The idea is then to set the electric field as to that from the COMPASS residuals
         self.logger.info('Generating ModalAdaptiveOpticsLayer')
         self.layer = hcipy.ModalAdaptiveOpticsLayer(hcipy.InfiniteAtmosphericLayer(pupil_grid,
-                                                        hcipy.Cn_squared_from_fried_parameter(r0, 1),
+                                                        hcipy.Cn_squared_from_fried_parameter(r0),
                                                         L0,
                                                         wind_velocity,
                                                         use_interpolation=True), 
@@ -989,17 +1030,31 @@ class HcipySimInstrument(GenericInstrument):
 
 
     def _initialize_ncpa(self, coeffs, modal_basis=None):
+        '''
+
+        PARAMETERS
+        ----------
+        coeffs  : 1d array
+            vector of modal coefficients. Len(coeffs) should be <= # of modes in the modal basis
+        moda_basis  : hcipy.ModeBasis
+            (optional). If not set, uses the self.ao_modes
+        '''
         if modal_basis is None:
             self.logger.info('Using AO modal basis to generate NCPA map')
             # generate a default phase map
-            self.phase_ncpa = self.ao_modes.linear_combination(coeffs)
+            self.phase_ncpa = self.ao_modes[:len(coeffs)].linear_combination(coeffs)
         else:
-            self.phase_ncpa = modal_basis.linear_combination(coeffs)
+            self.phase_ncpa = modal_basis[:len(coeffs)].linear_combination(coeffs)
 
     def set_ncpa(self, phase_ncpa):
             assert phase_ncpa.ndim == 1, 'phase ncpa should be a flatten (Field) array'
             self.phase_ncpa = phase_ncpa
 
+    def setNcpaCorrection(self, phase, integrator=True, leak=1):
+        if integrator:
+            self.phase_ncpa_correction = leak * self.phase_ncpa_correction + phase
+        else:
+            self.phase_ncpa_correction = phase
 
     def _initialize_water_vapour(self):
         raise NotImplemented
@@ -1103,7 +1158,8 @@ class HcipySimInstrument(GenericInstrument):
         for time_step in time_steps:
             # Residual phase
             self.layer.evolve_until(time_step)
-            phase_screen_phase = self.layer.phase_for(1)# in radian
+            # phase_screen_phase = self.layer.phase_for(1)# in radian
+            phase_screen_phase = self.layer.phase_for(self.wavelength)
             telemetry = self._generateWfsTelemetry(phase_screen_phase)
 
             # Save time buffer separately. No decimation is applied here
@@ -1111,25 +1167,37 @@ class HcipySimInstrument(GenericInstrument):
             self._telemetry_buffer.append(telemetry)
             self._buffer_time_index.append(time_step)
 
-        self._current_time_ms = time_steps[-1] * 1e3
+        # self._current_time_ms = time_steps[-1] * 1e3
 
-    def _checkIfDataIsAvailable(self, nbOfPastSeconds):
-        available_time_lapse = self._buffer_time_index[-1] - self._buffer_time_index[0]
-        if available_time_lapse < nbOfPastSeconds:
+    # def _checkIfDataIsAvailable(self, nbOfPastSeconds):
+    #     available_time_lapse = self._buffer_time_index[-1] - self._buffer_time_index[0]
+    #     if available_time_lapse < nbOfPastSeconds:
+    #         self.logger.warn("Past not available, evolving atmosphere")
+    #         self._evolve_atmosphere(nbOfPastSeconds - available_time_lapse)
+
+    def _checkEvolutionAtmosphere(self, nbOfPastSeconds):
+        if (self._current_time_ms * 1e-3 + nbOfPastSeconds) > self.layer.layer.t:
             self.logger.warn("Past not available, evolving atmosphere")
-            self._evolve_atmosphere(nbOfPastSeconds - available_time_lapse)
+            delta_time =  (self._current_time_ms * 1e-3 + nbOfPastSeconds) - self.layer.layer.t
+            self.logger.warn("Evolving atmosphere for {0:.5f} seconds".format(delta_time))
+            self._evolve_atmosphere(delta_time)
 
     def grabWfsTelemetry(self, nbOfPastSeconds):
         assert self.include_residual_turbulence, \
             "Can only grab wavefront sensor telemetry if simulating residual atmospheric turbulence"
         
-        self._checkIfDataIsAvailable(nbOfPastSeconds)
+        self._checkEvolutionAtmosphere(nbOfPastSeconds)
         # Select data in the telemetry buffer
-        st = self._current_time_ms * 1e-3
-        start_idx = self._buffer_time_index.index(st - nbOfPastSeconds)
-        self._start_time_wfs = self._buffer_time_index[start_idx]
-        self._end_time_wfs = st
-        telemetry_selected = self._telemetry_buffer[start_idx:]
+        st = self.layer.layer.t #self._current_time_ms * 1e-3 
+
+        
+        start = self._buffer_time_index.index(np.round(st - nbOfPastSeconds + self.sampling_time,
+                                                       self._decimals))
+        end = self._buffer_time_index.index(np.round(st, self._decimals))
+
+        self._start_time_wfs = self._buffer_time_index[start]
+        self._end_time_wfs = self._buffer_time_index[end]
+        telemetry_selected = self._telemetry_buffer[start:end:self.decimation]
         nbOfFrames = len(telemetry_selected)
         # Reshape to 3D cube
         return np.array(telemetry_selected).reshape((nbOfFrames,
@@ -1145,13 +1213,17 @@ class HcipySimInstrument(GenericInstrument):
         if self.include_residual_turbulence:
             nbOfFrames = int(self.sci_exptime / (self.sampling_time * self.decimation)) 
             # Handling of time and select appropriate residual phase screens
-            self._start_time_last_sci_dit = np.copy(self._end_time_last_sci_dit)
-            start = self._buffer_time_index.index(self._start_time_last_sci_dit)
-            end = self._buffer_time_index.index(self._start_time_last_sci_dit + self.sci_exptime)
-            res_phase_selected = self._res_phase_buffer[start:end:self.decimation]
-            self._end_time_last_sci_dit = np.copy(start + self.sci_exptime)
+            self._start_time_last_sci_dit = np.copy(self._end_time_last_sci_dit + self.sampling_time)
+            start_sci = self._buffer_time_index.index(np.round(self._start_time_last_sci_dit, self._decimals))# + self.sampling_time)
+            end_sci = self._buffer_time_index.index(np.round(self._start_time_last_sci_dit +
+                                                             self.sci_exptime - self.sampling_time,
+                                                             self._decimals))
+            self._end_time_last_sci_dit = np.copy(self._start_time_last_sci_dit + self.sci_exptime - self.sampling_time)
+
+            res_phase_selected = self._res_phase_buffer[start_sci:end_sci:self.decimation]
+
         else:
-            self.logger.warn('Setting science image to a single realization')
+            #self.logger.warn('Setting science image to a single realization')
             nbOfFrames = 1
 
         ss = self.pupilGrid.points.shape[0]
@@ -1181,15 +1253,15 @@ class HcipySimInstrument(GenericInstrument):
     def grabScienceImages(self, nbOfPastSeconds, **kwargs):
         self.nbOfSciImages = int(nbOfPastSeconds / self.sci_exptime)
         if self.include_residual_turbulence:
-            self._checkIfDataIsAvailable(nbOfPastSeconds)
+            self._checkEvolutionAtmosphere(nbOfPastSeconds)
             # select data in the telemetry buffer
-            st = self._current_time_ms * 1e-3
-            start_idx = self._buffer_time_index.index(st - nbOfPastSeconds)
+            st = self.layer.layer.t #self._current_time_ms * 1e-3
+            start_idx = self._buffer_time_index.index(np.round(st - nbOfPastSeconds + self.sampling_time, self._decimals))
             self._start_time_sci_buffer = self._buffer_time_index[start_idx]
             self._end_time_sci_buffer = st
 
             self._start_time_last_sci_dit = np.copy(self._start_time_sci_buffer)
-            self._end_time_last_sci_dit = np.copy(self._start_time_sci_buffer)
+            self._end_time_last_sci_dit = np.copy(self._start_time_sci_buffer - self.sampling_time)
 
             assert self.nbOfSciImages <= nbOfPastSeconds / self.sci_exptime
             if not(np.isclose(self.nbOfSciImages, nbOfPastSeconds/self.sci_exptime)):
@@ -1216,11 +1288,28 @@ class HcipySimInstrument(GenericInstrument):
         # Returns
         return image_buffer
 
-
     def synchronizeBuffers(self):
-        self._evolve_atmosphere(nbOfSeconds)
+        return self.synchronizeBuffers(None, None)
 
+    def synchronizeBuffers(self, wfs_telemetry_buffer, science_images_buffer):
+        # raise NotImplementedError()
+        # self._evolve_atmosphere(nbOfSeconds)
+        self._current_time_ms = self.layer.layer.t * 1e3
+        
+        # For each science image, calculate a start and stop index for
+        #   the wfs telemetry buffer
+        telemetry_indexing = [(i * self.nb_ao_per_sci, (i+1) * self.nb_ao_per_sci)
+                           for i in range(self.nbOfSciImages)]
 
+        return telemetry_indexing
+
+    def getNumberOfPhotons(self):
+        '''
+            Returns
+            --------
+            Number of photons for a single science exposure
+        '''
+        return self.num_photons
 
 class ErisInterfaceOffline(GenericInstrument):
     '''

@@ -150,7 +150,7 @@ class KernelSensor():
         if verbose:
             kpi.plot_pupil_and_uv()
     
-    def _loadKPO(self, fname_model="scexao_asym.fits.gz"):
+    def _loadKPO(self, fname_model="scexao_asym.fits.gz", neig=None):
         '''
             fname_model : .fits or .fits.gz
 
@@ -160,8 +160,19 @@ class KernelSensor():
         U, S, Vt = np.linalg.svd(self.kpo.kpi.TFM, full_matrices=0)
 
         # filter some of the low singular values
-        neig = int(0.4*len(S))     # 200 nomber of singular values to keep (max=509 for this model)
-        self.logger.info('Keeping 40% of the eigenvalues : {0}'.format(neig))
+        if neig is None:
+            #neig = int(0.4*len(S))     # 200 nomber of singular values to keep (max=509 for this model)
+            ss = S / S.max()
+            idx = np.argwhere(ss < 1e-3)
+            if len(idx) == 0:
+                neig=len(ss)
+            else:
+                neig = idx[0][0]
+        else:
+            if neig > len(S):
+                neig = len(S)
+        self.logger.info('Keeping {0:.0f}% of the eigenvalues : {1}'.format(np.round(neig/len(S)*100),
+                                                                        neig))
         Sinv = 1 / S
         Sinv[neig:] = 0.0
 
@@ -252,15 +263,22 @@ class KernelSensor():
     #                     method='linear')
 
     def _initModalBases(self, nbOfModes=100):
+        '''
+        FIXME re-orthonormalization leads to NaNs for the small aperture
+            (because odd grid ??)
+            check the basis -> impact of diam=1
+        '''
         diam = 1
         radial_cutoff = False
 
-        self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps - 1)
+        self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps)
+        #self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps - 1)
         self.M2C_small = hcipy.make_zernike_basis(nbOfModes, diam,
                                                    self.smallGrid,
                                                   4,
                                                   radial_cutoff=radial_cutoff)
         self.M2C_small = psi_utils.reorthonormalize(self.M2C_small, self._small_aperture.flatten())
+        # TM = self.M2C_small.transformation_matrix.copy()
         self.C2M_small = hcipy.inverse_tikhonov(self.M2C_small.transformation_matrix, 1e-3)
 
         self.M2C_large = hcipy.make_zernike_basis(nbOfModes, diam,

@@ -1,5 +1,7 @@
 import numpy as np
 import hcipy
+import aotools
+from astropy.modeling import models
 
 def reorthonormalize(modal_basis, aperture):
     transformation_matrix = modal_basis.transformation_matrix * aperture[:, np.newaxis]
@@ -12,6 +14,84 @@ def reorthonormalize(modal_basis, aperture):
     basis_orthonormalized = np.dot(transformation_matrix, np.linalg.inv(L).T)
 
     return hcipy.ModeBasis(basis_orthonormalized, modal_basis.grid)
+
+def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
+    '''
+        Build a 'Gendrinou' basis (see email 14/10/2020). 
+        Based on actuator inter-distance
+
+        To map from the actuator grid (assumed to be cartesian) to the pupil grid, 
+        we use Gaussian influence functions
+
+        Parameters
+        ----------
+        pupil grid : hcipy CartesianGrid
+        aperture   : hcipy field or 2D numpy array
+        nActOnDiam  : number of actuators along the aperture diameter. 
+            Sets the number of modes in the basis (2 * pi * (nActOnDiam/2)**2)
+
+        Returns
+        -------
+        modeBasis:  hcipy.ModeBasis
+            computed on the pupil_grid and with the aperture mask applied
+    '''
+    nGrid = pupil_grid.dims[0]
+
+    x = np.linspace(-nActOnDiam/2, nActOnDiam/2, nActOnDiam) #np.arange(nActOnDiam) +0.5 - nActOnDiam//2 #np.linspace(- nGrid / 2, nGrid/2 , nActOnDiam +1) + 0.5
+    xx, yy = np.meshgrid(x,x)
+
+    pupil_dm = aotools.circle(nActOnDiam/2, nActOnDiam)
+
+    xxf = xx[pupil_dm==1]
+    yyf = yy[pupil_dm==1]
+    nAct = int(np.sum(pupil_dm))
+    A = np.zeros((nAct, nAct))
+    # --- Gendrinou recipe ---
+    for i in range(nAct):
+            A[i, :] = np.sqrt((xxf - xxf[i])**2 + (yyf - yyf[i])**2)
+
+    A = A**(5/3)
+    # Piston removal
+    P = np.identity(nAct) - (1/nAct)*np.ones((nAct, nAct))
+    Ap = np.dot(P, np.dot(A, np.transpose(P)))
+
+    U, S, V = np.linalg.svd(Ap)
+
+    # -- Generating pseudo-influence functions to map on a larger pupil grid --
+    coords = np.linspace(-nActOnDiam/2, nActOnDiam/2, nGrid ) 
+    xgrid, ygrid = np.meshgrid(coords,coords)
+    # pupil = aotools.circle(nGrid/2, nGrid )
+
+    gaussian = models.Gaussian2D(amplitude=1,
+                                    x_mean=0,
+                                    y_mean=0,
+                                    x_stddev=1, #nGrid/nActOnDiam/2,
+                                    y_stddev=1, #nGrid/nActOnDiam/2,
+                                    theta=0)
+
+    IFs = np.zeros((nAct, (nGrid ) * (nGrid )))
+    for i in range(nAct):
+        IF = gaussian(xgrid - xxf[i], ygrid - yyf[i])
+        IFs[i] = IF.flatten()
+
+    # Remap to 2D
+    if type(aperture) == hcipy.Field:
+        aperture = aperture.shaped
+
+    modeBasis = np.zeros((nAct, nGrid, nGrid))
+    cmdBasis = np.zeros((nAct, nActOnDiam, nActOnDiam))
+    for i in range(nAct):
+        cmdBasis[i][pupil_dm==1] = U[:, i] #Up[:,i]
+        modeBasis[i] = np.reshape(np.sum(IFs.T * U[:,i], axis=1), (nGrid, nGrid)) * aperture 
+        
+        norm = np.std(modeBasis[i][aperture==1])
+        modeBasis[i] /= norm
+        cmdBasis[i] /= norm
+
+    modeBasis_hcipy = hcipy.ModeBasis([modeBasis[i].flatten() for i in range(nAct)], pupil_grid)
+    # optional: return cmdBasis)
+
+    return modeBasis, modeBasis_hcipy
 
 
 def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
@@ -67,13 +147,16 @@ def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
 
     params = {'m':[], 'n':[], 'p':[]}
 
+    if type(aperture) == hcipy.Field:
+        aperture = aperture.shaped
+
     for i in range(kxy_list.shape[0]*2):
         p = -1
         if not(i % 2):
             p = 1
         m = kx_list[i//2]
         n = ky_list[i//2]
-        mode_basis_cube[i] = aperture.shaped * fourier_nm(m, n,
+        mode_basis_cube[i] = aperture * fourier_nm(m, n,
                                     pupil_size, p)
         params['m'].append(m)
         params['n'].append(n)
@@ -82,3 +165,16 @@ def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
     modeBasis = hcipy.ModeBasis([mode.flatten() for mode in mode_basis_cube], pupil_grid)
 
     return params, modeBasis
+
+# def 
+#         self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps - 1)
+#         self.M2C_small = hcipy.make_zernike_basis(nbOfModes, diam,
+#                                                    self.smallGrid,
+#                                                   4,
+#                                                   radial_cutoff=radial_cutoff)
+#         self.M2C_small = psi_utils.reorthonormalize(self.M2C_small, self._small_aperture.flatten())
+#         self.C2M_small = hcipy.inverse_tikhonov(self.M2C_small.transformation_matrix, 1e-3)
+
+#         self.M2C_large = hcipy.make_zernike_basis(nbOfModes, diam,
+#                                                   self.inst.pupilGrid, 4,
+#                                                   radial_cutoff=radial_cutoff)

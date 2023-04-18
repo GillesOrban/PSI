@@ -1000,7 +1000,7 @@ class HcipySimInstrument(GenericInstrument):
             self.optical_model = hcipy.OpticalSystem([self._vvc_element,
                                                       self._lyot_stop_element,
                                                       self._prop])
-        elif self._inst_mode == 'ELT':
+        elif self._inst_mode == 'ELT' or self._inst_mode == 'IMG':
             self.logger.info('Building a simple imager in HCIPy')
             self.optical_model = hcipy.OpticalSystem([self._prop])
 

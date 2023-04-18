@@ -50,8 +50,8 @@ conf = dict(
     # ======
     #    Photometry
     # ======
-    noise = 0  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
-    mag = 0,                            # star magnitude at selected band
+    noise = 2,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
+    mag = 3,                            # star magnitude at selected band
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
     ## L-filter
@@ -89,7 +89,7 @@ conf = dict(
     # #  PSI algorithm
     # # =========
     # TODO make 'framerate' sensor agnostics -> renaming
-    psi_framerate = 0.5,           # [Hz] framerate of the psi correction
+    psi_framerate = 1,           # [Hz] framerate of the psi correction
     psi_nb_iter = 60,            # number of iterations.
 
     # # How is the PSI estimate process before correction:
@@ -97,7 +97,7 @@ conf = dict(
     # #   2. zern    : projection on theoretical Zernike mode (circ ap.) and modal control
     # #   3. dh    : disk harmonics
 
-    psi_correction_mode = 'zern',
+    psi_correction_mode = 'all',
     psi_nb_modes = 101,           # (if modal) nb of modes
     psi_start_mode_idx = 4,        # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
 
@@ -109,7 +109,7 @@ conf = dict(
     psi_filt_radius = 10,          # [lbda/D]
 
     # PSI scaling --- because of unknown scaling factor of NCPA
-    ncpa_expected_rms = np.sqrt(np.sum(ncpa_vect**2)) * 3.8e-6 / 6.28*1e9, #181, #155, #80 #250,        # expected NCPA in [nm]
+    ncpa_expected_rms = 156, #np.sqrt(np.sum(ncpa_vect**2)) * 3.8e-6 / 6.28*1e9, #181, #155, #80 #250,        # expected NCPA in [nm]
 
     # ============
     #   NCPA

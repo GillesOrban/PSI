@@ -46,13 +46,14 @@ class PsiSensor():
      logger : object
          logger object. Default is ``LazyLogger``
     '''
-    def __init__(self, config_file, logger=LazyLogger('PSI'), setup=True):
+    def __init__(self, config_file, logger=LazyLogger('PSI'), setup=False):
         self.logger = logger
         self.logger.info('Loading and checking configuration')
         self._config_file = config_file
         self.cfg = loadConfiguration(config_file)
         if setup:
             self.setup()
+
 
     def setup(self):
         '''
@@ -61,6 +62,7 @@ class PsiSensor():
         # Build instrument object 'inst'
         self.logger.info('Initialize the instrument object & '
                          'building the optical model')
+
         # self.inst = getattr(instruments,
         #                     self.cfg.params.instrument)(self.cfg.params)
         self.inst = eval(self.cfg.params.instrument)(self.cfg.params)
@@ -81,17 +83,25 @@ class PsiSensor():
         if self.cfg.params.psi_correction_mode is not 'all':
             self.logger.info('Building modal basis for projectiong/filtering of the NCPA map')
             diam = 1
+            radial_cutoff=False
+            reortho=True
+            self._basis_start_idx = 1
             if self.cfg.params.psi_correction_mode == 'zern':
                 self.M2C = hcipy.make_zernike_basis(self.cfg.params.psi_nb_modes, diam,
                                                 self.inst.pupilGrid,
-                                                self.cfg.params.psi_start_mode_idx)#.orthogonalized
+                                                self._basis_start_idx, #self.cfg.params.psi_start_mode_idx,
+                                               radial_cutoff=radial_cutoff)#.orthogonalized
+
             if self.cfg.params.psi_correction_mode == 'dh':
                 self.logger.warn('Warning psi_start_mode_idx is ignored')
                 self.M2C = hcipy.make_disk_harmonic_basis(self.inst.pupilGrid,
                                                      self.cfg.params.psi_nb_modes,
                                                      diam)
-
-            self.C2M = hcipy.inverse_tikhonov(self.M2C.transformation_matrix, 1e-3)
+            if reortho:
+                self.M2C = psi_utils.reorthonormalize(self.M2C, self.inst.aperture)
+            self.M2C_matrix = self.M2C.transformation_matrix[:, self.cfg.params.psi_start_mode_idx - self._basis_start_idx:]
+            self.C2M = hcipy.inverse_tikhonov(self.M2C.transformation_matrix, 1e-3)\
+                [self.cfg.params.psi_start_mode_idx - self._basis_start_idx:, :]
 
         self._ncpa_modes_integrated = 0 # np.zeros(self.cfg.params.psi_nb_modes)
         self._amplitude_integrated = 0
@@ -336,7 +346,7 @@ class PsiSensor():
         else:
             proj_mask = self.inst.aperture
         ncpa_modes      = self.C2M.dot(ncpa_estimate * proj_mask)
-        ncpa_estimate  = self.M2C.transformation_matrix.dot(ncpa_modes)
+        ncpa_estimate  = self.M2C_matrix.dot(ncpa_modes) #self.M2C.transformation_matrix.dot(ncpa_modes)
         return ncpa_estimate, ncpa_modes
 
     def _propagateSpeckleFields(self, wfs_telemetry_buffer):
@@ -542,13 +552,13 @@ class PsiSensor():
         # Metrics... - might only be valid in simualtion
         # self.evaluateSensorEstimate()
 
-
         # Display
         if display:
             I_avg = science_images_buffer.mean(0)
             self.show(I_avg,
                       self._ncpa_estimate * self.ncpa_scaling,
                       gain_I * self._ncpa_modes * self.ncpa_scaling)
+
 
     def loop(self):
         '''
@@ -599,20 +609,19 @@ class PsiSensor():
             interval=MinMaxInterval(),
             stretch=SqrtStretch())
         plt.axis('off')
-
-
         plt.title('L.E. SCI img')
+
         ax = plt.subplot(gs[0, 1])
         if np.size(self.inst.phase_ncpa_correction) == 1:
             hcipy.imshow_field(np.zeros(256**2), self.inst.pupilGrid,
                                cmap='RdBu', mask=self.ncpa_mask)
-            
+
         else:
             # , vmin=-ncpa_max, vmax=ncpa_max)
             hcipy.imshow_field(-self.inst.phase_ncpa_correction,
                                 self.inst.pupilGrid,
                                 cmap='RdBu', mask=self.ncpa_mask)
-            
+
         plt.axis('off')
         plt.title('NCPA correction')
 

@@ -1,5 +1,6 @@
 import traceback
 import sys
+import os
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 from .helperFunctions import LazyLogger
 from .psi_utils.photometry_definition import PHOT
@@ -54,6 +55,7 @@ class Parameters(object):
         ``wavelength``              - req ?
         ``flux_zpt``                -
         ``flux_bckg``               -
+        ``bandwidth``               - 
         ``ncpa_dynamic``            -
         ``ncpa_sampling``           -
         ``ncpa_scaling``            -
@@ -114,14 +116,13 @@ class Parameters(object):
         if not(hasattr(self.params, 'det_res')):
             self.params.det_res = None
 
-
         # TODO check consistency between Lyot stop and band
         # check, based on the band, that the zeropoint is according to defined 'constants'
         #  otherwise print a 'warning'
         if self.params.inst_mode == 'CVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC':
-                self.logger.warn(('Lyot stop fname does not seem to match for {0} \t'
+            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_L':
+                self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              'Please check the filename').format(self.params.inst_mode))
             # if self.params.band == 'N':
             #     if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_N':
@@ -132,25 +133,28 @@ class Parameters(object):
             if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC_L':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              '  Please check the filename').format(self.params.inst_mode))
+
             # if self.params.band == 'N':
             #     if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_RAVC_N':
             #         self.logger(('Lyot stop fname does not seem to match for {0}.'
             #                      ' Please check the filename').format(self.params.inst_mode))
 
-        assert self.params.det_size >= self.params.psi_filt_radius
+        if hasattr(self.params, 'psi_filt_radius'):
+            assert self.params.det_size >= self.params.psi_filt_radius
 
-        # PSI correction mode checks
-        if self.params.psi_correction_mode == 'zern':
-            if hasattr(self.params, 'psi_nb_modes') is False:
-                default_nb_modes = 20
-                self.logger.warn('Setting default psi_nb_modes to {0}'.\
-                    format(default_nb_modes))
-                self.params.psi_nb_modes = default_nb_modes
-            if hasattr(self.params, 'psi_start_mode_idx') is False:
-                default_start_idx = 4
-                self.logger.warn('Setting default psi_start_mode_idx to {0}'.\
-                    format(default_start_idx))
-                self.params.psi_start_mode_idx = default_start_idx
+        if hasattr(self.params, 'psi_correction_mode'):
+            # PSI correction mode checks
+            if self.params.psi_correction_mode == 'zern':
+                if hasattr(self.params, 'psi_nb_modes') is False:
+                    default_nb_modes = 20
+                    self.logger.warn('Setting default psi_nb_modes to {0}'.\
+                        format(default_nb_modes))
+                    self.params.psi_nb_modes = default_nb_modes
+                if hasattr(self.params, 'psi_start_mode_idx') is False:
+                    default_start_idx = 4
+                    self.logger.warn('Setting default psi_start_mode_idx to {0}'.\
+                        format(default_start_idx))
+                    self.params.psi_start_mode_idx = default_start_idx
 
         if not(hasattr(self.params, 'gain_I')):
             self.params.gain_I = 0.4
@@ -170,6 +174,29 @@ class Parameters(object):
         if self.params.save_phase_screens and not(self.params.save_loop_statistics):
             self.logger.warn('Setting save results to True')
             self.params.save_results = True
+
+        # Set default attributes if not already defined 
+        # Check is asymmetric pupil/lyot stop (kernel WFS). If not, set to None
+        if hasattr(self.params, 'asym_stop') is False:
+            self.params.asym_stop = None
+
+        if self.params.asym_stop == True:
+            self.params.asym_nsteps <= 2 * self.params.det_size  # pitch cannot be finer than set by field-of-view
+
+        if hasattr(self.params, 'bandwidth') is False:
+            self.params.bandwidth = 0
+
+
+        if self.params.instrument == 'HcipySimInstrument':
+            if self.params.pupil == 'ELT':
+                self.params.tel_diam = 40
+            elif self.params.pupil == 'ERIS':
+                self.params.tel_diam = 8.1196  # UT4
+            elif self.params.pupil == 'CIRC':
+                self.params.tel_diam = 8
+            else:
+                raise ConfigurationError('Pupil does not exist')
+
 
     def compute_parameters(self):
         '''

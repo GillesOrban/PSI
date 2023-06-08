@@ -6,6 +6,7 @@ __all__ += ['makeFilters', 'makeMatrices', 'makeOpticalSystem', 'makeZerns']
 __all__ += ['prop_image', 'prop_wf']
 __all__ += ['PSI']
 __all__ += ['processCorrection', 'processCorrection_Original']
+__all__ += ['reorthonormalize', 'fourier_modes_simple']
 
 from .psi import *
 from .psi_propagations import *
@@ -13,3 +14,4 @@ from .processCorrection import *
 from .makeGrids import *
 from .psi_utils import *
 from .apertures import *
+from .modal_basis import *

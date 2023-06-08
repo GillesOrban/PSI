@@ -150,6 +150,7 @@ class KernelSensor():
         if verbose:
             kpi.plot_pupil_and_uv()
     
+
     def _loadKPO(self, fname_model="scexao_asym.fits.gz", neig=None):
         '''
             fname_model : .fits or .fits.gz

@@ -8,8 +8,10 @@ import hcipy
 import psi.psi_utils as psi_utils
 from psi.psi_utils.psi_utils import crop_img, resize_img
 import numpy as np
-from .helperFunctions import LazyLogger
 import astropy.io.fits as fits
+
+from .helperFunctions import LazyLogger
+
 
 
 
@@ -46,6 +48,7 @@ class GenericInstrument():
         self.phase_wv = hcipy.Field(0.0, self.pupilGrid)           # knowledge only in Simulation
         self.phase_wv_integrated = hcipy.Field(0.0, self.pupilGrid)    # knowledge only in Simulation
         self.phase_ncpa_correction = hcipy.Field(0.0, self.pupilGrid)  # NCPA correction applied
+        self.phase_ncpa_correction_integrator = hcipy.Field(0.0, self.pupilGrid)
 
         pass
 
@@ -285,7 +288,8 @@ class CompassSimInstrument(GenericInstrument):
             self.optical_model = hcipy.OpticalSystem([self._vvc_element,
                                                       self._lyot_stop_element,
                                                       self._prop])
-        elif self._inst_mode == 'ELT' or self._inst_mode == 'IMG':
+        # elif self._inst_mode == 'ELT' or self._inst_mode == 'IMG':
+        elif self._inst_mode == 'IMG':
             self.logger.info('Building a simple imager in HCIPy')
             self.optical_model = hcipy.OpticalSystem([self._prop])
 
@@ -447,7 +451,7 @@ class CompassSimInstrument(GenericInstrument):
         # self._start_time_sci = np.copy(self._current_time_ms)
         # file_indices = [str(int(self._current_time_ms + timeIdxInMs[i]))
         #                 for i in range(len(timeIdxInMs))]
-        self._start_time_last_sci_dit= np.copy(self._end_time_last_sci_dit)
+        self._start_time_last_sci_dit = np.copy(self._end_time_last_sci_dit)
         file_indices = [str(int(self._start_time_last_sci_dit + timeIdxInMs[i]))
                         for i in range(len(timeIdxInMs))]
 
@@ -467,8 +471,6 @@ class CompassSimInstrument(GenericInstrument):
         efield_fp = self.optical_model(wf_post_)
         img_one = efield_fp.power
 
-        # nx, ny = img_one.shaped.shape
-        # image_cube = np.zeros((nbOfFrames, nx, ny))
         ss = residual_phase.shape[0]
         total_phase_cube = np.zeros((nbOfFrames, ss))
 
@@ -504,24 +506,40 @@ class CompassSimInstrument(GenericInstrument):
         total_phase_cube = hcipy.Field(total_phase_cube, self.pupilGrid)
         # wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture, 1)
 
+        # TODO  GOX (merge 08/06/2023): test mono- and poly- sequential propagation
+        def _propagate_single(total_phase_cube, wlen=1):
+          wf_post_0 = hcipy.Wavefront(np.exp(1j * total_phase_cube[0] / wlen) * self.aperture, wlen)
+          wf_post_0.total_power = self.num_photons
+          nx, ny = img_one.shaped.shape
+          self._image_cube = np.zeros((nbOfFrames, nx, ny))
+          self._image_cube[0] = self.optical_model(wf_post_0).power.shaped
+          if nbOfFrames>1:
+              for i in range(1, total_phase_cube.shape[0]):
+                  wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube[i] / wlen) * self.aperture, wlen)
+                  wf_post_.total_power = self.num_photons
+                  self._image_cube[i] = self.optical_model(wf_post_).power.shaped   
+           return self._image_cube
+        
         if bandwidth == 0:
-            wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
+          self._image_cube = _propagate_single(total_phase_cube)
+#             wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
-            # Setting number of photons
-            # ToDo
-            wf_post_.total_power = self.num_photons * nbOfFrames
-            # Propagation through the instrument
-            # TODO: expose 'prop' and 'coro'
+#             # Setting number of photons
+#             # ToDo
+#             wf_post_.total_power = self.num_photons * nbOfFrames
+#             # Propagation through the instrument
+#             # TODO: expose 'prop' and 'coro'
 
-            self._image_cube = self.optical_model(wf_post_).power.shaped
+#             self._image_cube = self.optical_model(wf_post_).power.shaped
         else:
             assert bandwidth > 0 
             tmp_focal = 0
             for wlen in np.linspace(1 - bandwidth / 2., 1 + bandwidth / 2., npts):
                 # the phase aberration needs also to be scaled to preserve the same physical OPD
-                wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube / wlen) * self.aperture, wlen)
-                wf_post_.total_power = self.num_photons * nbOfFrames
-                tmp_focal += self.optical_model(wf_post_).power.shaped
+#                 wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube / wlen) * self.aperture, wlen)
+#                 wf_post_.total_power = self.num_photons * nbOfFrames
+#                 tmp_focal += self.optical_model(wf_post_).power.shaped
+                  tmp_focal += _propagate_single(total_phase_cube, wlen)
             self._image_cube = tmp_focal / npts
 
         # if vvc:
@@ -595,19 +613,28 @@ class CompassSimInstrument(GenericInstrument):
         self._end_time_wfs = self._current_time_ms + timeIdxInMs[-1] + deltaTime
         return phase_cube
 
-    def setNcpaCorrection(self, phase, integrator=True, leak=1):
+    def setNcpaCorrection(self, phase_int, phase_prop=0, leak=1, integrator=True):
         '''
-            Apply NCPA correction
+            Apply NCPA correction.
+            Allows PI control
 
             Parameters
             ----------
-            phase : numpy ndarray
-                phase correction to be applied
+            phase_int : numpy ndarray
+                phase correction to be applied as a residual term to an integrator
+            phase_prop : numpy ndarray
+                proportional term to add. default is 0
+            leak  : float
+                leak applied to the integrator part
+            integrator : bool
+                True: apply leaky PI controller. False: apply `phase_int` as absolute phase correction
         '''
         if integrator:
-            self.phase_ncpa_correction = leak * self.phase_ncpa_correction + phase
+          self.phase_ncpa_correction_integrator = leak * self.phase_ncpa_correction_integrator + phase_int
+          self.phase_ncpa_correction = phase_prop + self.phase_ncpa_correction_integrator
         else:
-            self.phase_ncpa_correction = phase
+          self.phase_ncpa_correction = phase
+
 
     def synchronizeBuffers(self, wfs_telemetry_buffer, sci_image_buffer):
         '''
@@ -724,17 +751,14 @@ class DemoCompassSimInstrument(CompassSimInstrument):
         # wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture, 1)
         wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
+        # TODO change to sequential propagation instead of as a tensor ! 
+        #   (see CompassSim class)
         # Setting number of photons
-        # ToDo
         wf_post_.total_power = self.num_photons * nbOfFrames
         # Propagation through the instrument
-        # TODO: expose 'prop' and 'coro'
-
         self._image_cube = self.optical_model(wf_post_).power.shaped
-        # if vvc:
-        # 	image_cube[i] = prop(coro(wf_post_)).power.shaped
-        # else:
-        # 	image_cube[i] = prop((wf_post_)).power.shaped
+
+
         assert len(self._image_cube.shape) == 3
         image = self._image_cube.mean(0)
         # Photometry -- TBC
@@ -820,7 +844,6 @@ class HcipySimInstrument(GenericInstrument):
             conf = SimpleNamespace(**conf)
 
         self._setup(conf)
-
         
         start_time = 0
         self._current_time_ms = start_time
@@ -848,7 +871,6 @@ class HcipySimInstrument(GenericInstrument):
                                                              with_M3_cover=True)(self.pupilGrid)
         elif conf.pupil == 'CIRC':
             self.aperture = hcipy.aperture.make_circular_aperture(self.diam)(self.pupilGrid)
-
 
         self.nb_ao_per_sci = conf.nb_ao_frames_per_science
         self.decimation = conf.ao_frame_decimation #10

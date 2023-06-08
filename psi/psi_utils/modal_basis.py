@@ -93,7 +93,6 @@ def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
 
     return modeBasis, modeBasis_hcipy
 
-
 def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
     '''
         Convenient method to generate Fourier modes.
@@ -147,6 +146,7 @@ def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
 
     params = {'m':[], 'n':[], 'p':[]}
 
+
     if type(aperture) == hcipy.Field:
         aperture = aperture.shaped
 
@@ -156,6 +156,7 @@ def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
             p = 1
         m = kx_list[i//2]
         n = ky_list[i//2]
+
         mode_basis_cube[i] = aperture * fourier_nm(m, n,
                                     pupil_size, p)
         params['m'].append(m)

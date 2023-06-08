@@ -46,11 +46,13 @@ class PsiSensor():
      logger : object
          logger object. Default is ``LazyLogger``
     '''
-    def __init__(self, config_file, logger=LazyLogger('PSI')):
-        self.logger=logger
+    def __init__(self, config_file, logger=LazyLogger('PSI'), setup=False):
+        self.logger = logger
         self.logger.info('Loading and checking configuration')
         self._config_file = config_file
         self.cfg = loadConfiguration(config_file)
+        if setup:
+            self.setup()
 
 
     def setup(self):
@@ -58,7 +60,8 @@ class PsiSensor():
             Setup the PSI wavefront sensor based on the configuration
         '''
         # Build instrument object 'inst'
-        self.logger.info('Initialize the instrument object & building the optical model')
+        self.logger.info('Initialize the instrument object & '
+                         'building the optical model')
         # self.inst = getattr(instruments,
         #                     self.cfg.params.instrument)(self.cfg.params)
         self.inst = eval(self.cfg.params.instrument)(self.cfg.params)
@@ -66,11 +69,12 @@ class PsiSensor():
         self.inst.build_optical_model()
 
         # # Build focal plane filter for PSI
-        self.filter_fp = psi_utils.makeFilters(self.inst.focalGrid,
-                                             "back_prop",
-                                             sigma=self.cfg.params.psi_filt_sigma,
-                                             lD = self.cfg.params.psi_filt_radius * 2)
-
+        self.filter_fp = psi_utils.makeFilters(
+            self.inst.focalGrid,
+            "back_prop",
+            sigma=self.cfg.params.psi_filt_sigma,
+            lD=self.cfg.params.psi_filt_radius * 2
+            )
 
 
         # Build basis for modal projection
@@ -98,7 +102,7 @@ class PsiSensor():
             self.M2C_matrix = self.M2C.transformation_matrix[:, self.cfg.params.psi_start_mode_idx - self._basis_start_idx:]
             self.C2M = hcipy.inverse_tikhonov(self.M2C.transformation_matrix, 1e-3)\
                 [self.cfg.params.psi_start_mode_idx - self._basis_start_idx:, :]
-        
+
         self._ncpa_modes_integrated = 0 # np.zeros(self.cfg.params.psi_nb_modes)
         self._amplitude_integrated = 0
         self._scale_factor_past = 0
@@ -300,10 +304,12 @@ class PsiSensor():
         # -- for robustness we divide by the median value within the aperture 
         #     instead of the 2d amplitude array
         # % 2 : not clear why, difference between wavefront and surface ?
-        # TODO :  VC modes are further divided by an empirical factor of 10. 
+        # TODO :  VC modes are further divided by an empirical factor of 10.
+        #          is it link to the suppression of the vortex ? (~100 in flux, so ~10 in amplitude ?) 
         # Not clear why: coronagraphic effect reducing speckle pinning... and modifying the scaling map ?
         # The value may depend on noise (magnitude) and fp filter radius
-        if self.cfg.params.inst_mode == 'ELT' or self.cfg.params.inst_mode=='IMG':
+        # if self.cfg.params.inst_mode == 'ELT' or self.cfg.params.inst_mode=='IMG':
+        if self.cfg.params.inst_mode=='IMG':
             mask = self.inst.aperture
         else:
             mask = self.inst.lyot_stop_mask
@@ -357,40 +363,41 @@ class PsiSensor():
         '''
         nf, nx, ny = wfs_telemetry_buffer.shape
         wfs_telemetry_buffer_1d = wfs_telemetry_buffer.reshape((nf, nx*ny))
-        wfs_wavefront_hcipy = hcipy.Field(wfs_telemetry_buffer_1d, self.inst.pupilGrid)
-        Efield = hcipy.Wavefront(self.inst.aperture * np.exp(1j * wfs_wavefront_hcipy) \
-            - self._diffraction_component)
-        # Efield = hcipy.Wavefront(self.inst.aperture * np.exp(1j * wfs_wavefront_hcipy) )
-        Efield.total_power = self.nbOfPhotons  * nf
-
-        # #----------
-        # # [2022-06-22] revising the flux scaling
-        # # flux-perfect and flux_speckle could be computed only once
-        # # this does not work yet ...
-        # Efield_perfect = hcipy.Wavefront(self._diffraction_component)
-        # flux_perfect = np.copy(Efield_perfect.total_power)
-        # Efield_speckle = hcipy.Wavefront(self.inst.aperture * 1j * wfs_wavefront_hcipy[0] )
-        # flux_speckle = np.copy(Efield_speckle.total_power)
-        #
+        wfs_wavefront_hcipy = hcipy.Field(wfs_telemetry_buffer_1d,
+                                          self.inst.pupilGrid)
+        
+		# [GOX] revisiting propagation
+		# -- In one-go
         # Efield = hcipy.Wavefront(self.inst.aperture * np.exp(1j * wfs_wavefront_hcipy) \
         #     - self._diffraction_component)
-        # Efield.total_power = self.nbOfPhotons  * nf * (flux_speckle / flux_perfect)
-        # # Efield = hcipy.Wavefront(Efield_telemetry.electric_field - Efield_perfect.electric_field)
-        # self.logger.debug('Efield total power= {0} vs Efield_perfect = {1}, Efield_telemetry = {2} '.format(Efield.total_power,
-        #     Efield_perfect.total_power, Efield_speckle.total_power))
-        # #--------
+        # Efield.total_power = self.nbOfPhotons  * nf
+        # speckle_fields = self.inst.optical_model(Efield)
+		# reproducing what is normally done in Wavefront.power to obtain the correct flux normalisation
+        # return speckle_fields.electric_field * np.sqrt(speckle_fields.grid.weights)
+		# -- Sequential
+        Efield = hcipy.Wavefront(self.inst.aperture *
+                                 np.exp(1j * wfs_wavefront_hcipy[0])
+                                 - self._diffraction_component)
+        Efield.total_power = self.nbOfPhotons
+        speckle_field_0 = self.inst.optical_model(Efield)
+        # nx, ny = speckle_field_0.electric_field.shaped.shape[-2:]
+        speckle_fields = hcipy.Field(
+            np.zeros((nf, *speckle_field_0.electric_field.shape),
+                     dtype='complex'), speckle_field_0.grid)
+        speckle_fields[0] = speckle_field_0.electric_field * \
+            np.sqrt(speckle_field_0.grid.weights)
+        for i in range(1, nf):
+            Efield = hcipy.Wavefront(self.inst.aperture *
+                                     np.exp(1j * wfs_wavefront_hcipy[i])
+                                     - self._diffraction_component)
+            Efield.total_power = self.nbOfPhotons
+            tmp_speckle_field = self.inst.optical_model(Efield)
+            speckle_fields[i] = tmp_speckle_field.electric_field * \
+                np.sqrt(tmp_speckle_field.grid.weights)
 
-
-        # Efield_perfect = hcipy.Wavefront(self._diffraction_component)
-        # Efield_perfect.total_power = self.nbOfPhotons / nf
-        #
-        speckle_fields = self.inst.optical_model(Efield)
-        # speckle_fields.total_power = self.nbOfPhotons * nf
-        # speckle_fields_perfect = self.inst.optical_model(Efield_perfect).electric_field
-        #
-        # speckle_fields = speckle_fields - speckle_fields_perfect
-        # reproducing what is normally done in Wavefront.power to obtain the correct flux normalisation
-        return speckle_fields.electric_field * np.sqrt(speckle_fields.grid.weights)
+        # reproducing what is normally done in Wavefront.power
+        # to obtain the correct flux normalisation
+        return speckle_fields
 
     @timeit
     def _fullPsiAlgorithm(self, wfs_telemetry_buffer, science_images_buffer):
@@ -515,12 +522,14 @@ class PsiSensor():
         # gain = np.max((0.8**self.iter, 0.45))
         # gain = np.max((0.5**self.iter, 0.1))
         # gain = 0.45 # 2022-06-24 --- dominated by water vapour
-        gain = 1    # for static aberrations
+        # gain = 1    # for static aberrations
+        gain_I = self.cfg.params.gain_I
 
-        ncpa_command = - gain * self._ncpa_estimate * self.ncpa_mask * self.ncpa_scaling
+        ncpa_command = - gain_I * self._ncpa_estimate * self.ncpa_mask * self.ncpa_scaling
 
         self._ncpa_modes_integrated = self._ncpa_modes_integrated +\
-             gain * self._ncpa_modes * self.ncpa_scaling
+             gain_I * self._ncpa_modes * self.ncpa_scaling
+
         self._amplitude_integrated += self._amplitude_estimate
 
         if self._skip_limit is not None:
@@ -533,7 +542,7 @@ class PsiSensor():
                 ncpa_command= 0 * ncpa_command
 
         # Send correction
-        self.inst.setNcpaCorrection(ncpa_command)
+        self.inst.setNcpaCorrection(ncpa_command, phase_prop=self.cfg.params.gain_P * ncpa_command)
 
         self.iter += 1
         # ------------#
@@ -544,13 +553,12 @@ class PsiSensor():
         # Metrics... - might only be valid in simualtion
         # self.evaluateSensorEstimate()
 
-
         # Display
         if display:
             I_avg = science_images_buffer.mean(0)
             self.show(I_avg,
                       self._ncpa_estimate * self.ncpa_scaling,
-                      gain * self._ncpa_modes * self.ncpa_scaling)
+                      gain_I * self._ncpa_modes * self.ncpa_scaling)
 
     def loop(self):
         '''
@@ -599,22 +607,19 @@ class PsiSensor():
         # plt.imshow(np.sqrt(I_avg))
         im, norm = imshow_norm(I_avg, plt.gca(), origin='lower',
             interval=MinMaxInterval(),
-            stretch=LogStretch())
+            stretch=SqrtStretch())
         plt.axis('off')
-
-
         plt.title('L.E. SCI img')
+
         ax = plt.subplot(gs[0, 1])
         if np.size(self.inst.phase_ncpa_correction) == 1:
             hcipy.imshow_field(np.zeros(256**2), self.inst.pupilGrid,
                                cmap='RdBu', mask=self.ncpa_mask)
-            
         else:
             # , vmin=-ncpa_max, vmax=ncpa_max)
             hcipy.imshow_field(-self.inst.phase_ncpa_correction,
                                 self.inst.pupilGrid,
                                 cmap='RdBu', mask=self.ncpa_mask)
-            
         plt.axis('off')
         plt.title('NCPA correction')
 
@@ -641,10 +646,8 @@ class PsiSensor():
 
         ax = plt.subplot(gs[2, :])
         if self.cfg.params.psi_correction_mode is not 'all':
-            # mm=np.arange(self.cfg.params.psi_start_mode_idx,
-            #     self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
             mm=np.arange(self.cfg.params.psi_start_mode_idx,
-                self.cfg.params.psi_nb_modes + self._basis_start_idx)
+                self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
             plt.plot(mm, ncpa_modes, label='last NCPA correction')
             plt.plot(mm, self._ncpa_modes_integrated, c='k', ls='--', label='integrated')
             # plt.title('Last NCPA modes')

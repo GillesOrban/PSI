@@ -13,6 +13,7 @@ from types import SimpleNamespace
 # def read_config(verbose=False, **update_conf):
 _tmp_dir = 'data/'
 
+
 ncpa_vect = np.zeros(20)
 # ncpa_vect[91] = 0.3
 ncpa_vect = np.random.random(20) * 0.08

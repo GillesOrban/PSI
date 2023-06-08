@@ -13,24 +13,19 @@ from types import SimpleNamespace
 # def read_config(verbose=False, **update_conf):
 _tmp_dir = 'data/'
 
-
-ncpa_vect = np.zeros(20)
-# ncpa_vect[91] = 0.3
-ncpa_vect = np.random.random(20) * 0.08
-
 conf = dict(
 
-    npupil = 128, #256, #285,                        # number of pixels of the pupil
+    npupil = 256, #285,                        # number of pixels of the pupil
     det_size = 15, #14.875,                      # [lam/D] radial size of the detector plane array
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
-    det_res = 4, #9.3, # 4,                       # [px/ (lbda/D)] number of pixels per resolution element
+    det_res = 4,                       # [px/ (lbda/D)] number of pixels per resolution element
                                         #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
     instrument = 'HcipySimInstrument',
-    pupil = 'ELT',   # 'ERIS' or 'ELT', or 'CIRC'
+    pupil = 'CIRC',   # 'ERIS' or 'ELT', or 'CIRC'
 
     # =======
     #   Observing Modes
@@ -51,8 +46,8 @@ conf = dict(
     # ======
     #    Photometry
     # ======
-    noise = 2,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
-    mag = 3,                            # star magnitude at selected band
+    noise = 0  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
+    mag = 0,                            # star magnitude at selected band
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
     ## L-filter
@@ -65,8 +60,8 @@ conf = dict(
     # flux_zpt = 3.695e10, #8.999e+10,            # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
     # flux_bckg = 1.122e8, #8.878e+4,             # [e-/s/pix]
 
-    bandwidth = 0.0,                            # bandwidth for polychromatic simulations, 0 for monochromatic
-    dit = 0.01,                          # [s] science detector integration time
+    bandwidth = 0.2,                            # bandwidth for polychromatic simulations, 0 for monochromatic
+    dit = 0.1,                          # [s] science detector integration time
 
 
     # ======
@@ -76,41 +71,41 @@ conf = dict(
     ao_frame_decimation = 10,    # Decimation of the WFS telemetry use by PSI, e.g. if =10, we use 1 every 10 WF frame
 
     # =========
-    #  Kernel algorithm
+    #  Kernel
     # =========
-    asym_stop = False,
-    asym_angle = 0,                   # [optional]
-    asym_width = 0.15,                  # [optional]
+    asym_stop = True,
+    asym_angle = 90,                   # [optional]
+    asym_width = 0.05,                  # [optional]
     asym_model_fname = None, #toto.fits.gz',              # [optional]
     # asym_telDiam = 40,
-    asym_nsteps=33, # nb of steps along the pupil diameter
+    asym_nsteps= 33, #33, # nb of steps along the pupil diameter
     asym_tmin=0.5, # transmission min
 
     # # =========
-    # #  PSI algorithm
+    # #  PSI
     # # =========
     # TODO make 'framerate' sensor agnostics -> renaming
-    psi_framerate = 1,           # [Hz] framerate of the psi correction
-    psi_nb_iter = 60,            # number of iterations.
+    psi_framerate = 10,           # [Hz] framerate of the psi correction
+    # psi_nb_iter = 60,            # number of iterations.
 
     # # How is the PSI estimate process before correction:
     # #   1. all     : no projection or filtering
     # #   2. zern    : projection on theoretical Zernike mode (circ ap.) and modal control
     # #   3. dh    : disk harmonics
 
-    psi_correction_mode = 'all',
-    psi_nb_modes = 101,           # (if modal) nb of modes
-    psi_start_mode_idx = 4,        # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
+    # psi_correction_mode = 'zern',
+    # psi_nb_modes = 100,           # (if modal) nb of modes
+    # psi_start_mode_idx = 4,        # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
 
-    psi_skip_limit = None,         # [nm rms] value above which the psi_correction will be skipped.
-                                  # set to None if no skip limit
+    # psi_skip_limit = None,         # [nm rms] value above which the psi_correction will be skipped.
+    #                               # set to None if no skip limit
 
-    # Focal plane filtering
-    psi_filt_sigma = 0.05,
-    psi_filt_radius = 10,          # [lbda/D]
+    # # Focal plane filtering
+    # psi_filt_sigma = 0.05,
+    # psi_filt_radius = 10,          # [lbda/D]
 
-    # PSI scaling --- because of unknown scaling factor of NCPA
-    ncpa_expected_rms = 156, #np.sqrt(np.sum(ncpa_vect**2)) * 3.8e-6 / 6.28*1e9, #181, #155, #80 #250,        # expected NCPA in [nm]
+    # # PSI scaling --- because of unknown scaling factor of NCPA
+    # ncpa_expected_rms = 80, #250,        # expected NCPA in [nm]
 
     # ============
     #   NCPA
@@ -119,14 +114,10 @@ conf = dict(
     ncpa_dynamic =  False ,
     ncpa_sampling = 100,             # [s] Dyn NCPA sampling
     ncpa_scaling = 0.,               # scaling factor, if want to increase level
-
-    # coefficients of a NCPA map -- only used for HcipySimInstrument
-    ncpa_coefficients = [0, 0,0, 0.05, 0.15, 0.2, -0.03, 0.01, -0.005] , #ncpa_vect, #[0, 0,0, 0.05, 0.15, 0.2, -0.03, 0.01, -0.005] ,
+    ncpa_coefficients = [0],
     # =============
     #   Residual turbulence
-    # TODO to implement in the configParser and in the inst
-    # TODO residual_turbulence should be True when using PSI ...
-    residual_turbulence = True,  
+    residual_turbulence = False,  # TODO to implement in the configParser and in the inst
     # r0 = 0.15,
     # L0 = 25,
     # nmodes = 500,

@@ -18,7 +18,7 @@ import importlib
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 import psi.psi_utils as psi_utils
 from .configParser import loadConfiguration
-from .instruments import  CompassSimInstrument, DemoCompassSimInstrument
+from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
 from .helperFunctions import LazyLogger, timeit, build_directory_name, copy_cfgFileToDir
 
 from astropy.visualization import imshow_norm,\
@@ -62,7 +62,6 @@ class PsiSensor():
         # Build instrument object 'inst'
         self.logger.info('Initialize the instrument object & '
                          'building the optical model')
-
         # self.inst = getattr(instruments,
         #                     self.cfg.params.instrument)(self.cfg.params)
         self.inst = eval(self.cfg.params.instrument)(self.cfg.params)
@@ -76,6 +75,7 @@ class PsiSensor():
             sigma=self.cfg.params.psi_filt_sigma,
             lD=self.cfg.params.psi_filt_radius * 2
             )
+
 
         # Build basis for modal projection
         # TODO move to configParser compute ???
@@ -529,6 +529,7 @@ class PsiSensor():
 
         self._ncpa_modes_integrated = self._ncpa_modes_integrated +\
              gain_I * self._ncpa_modes * self.ncpa_scaling
+
         self._amplitude_integrated += self._amplitude_estimate
 
         if self._skip_limit is not None:
@@ -558,7 +559,6 @@ class PsiSensor():
             self.show(I_avg,
                       self._ncpa_estimate * self.ncpa_scaling,
                       gain_I * self._ncpa_modes * self.ncpa_scaling)
-
 
     def loop(self):
         '''
@@ -615,13 +615,11 @@ class PsiSensor():
         if np.size(self.inst.phase_ncpa_correction) == 1:
             hcipy.imshow_field(np.zeros(256**2), self.inst.pupilGrid,
                                cmap='RdBu', mask=self.ncpa_mask)
-
         else:
             # , vmin=-ncpa_max, vmax=ncpa_max)
             hcipy.imshow_field(-self.inst.phase_ncpa_correction,
                                 self.inst.pupilGrid,
                                 cmap='RdBu', mask=self.ncpa_mask)
-
         plt.axis('off')
         plt.title('NCPA correction')
 

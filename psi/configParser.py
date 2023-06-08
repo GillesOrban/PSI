@@ -130,7 +130,7 @@ class Parameters(object):
             #                      ' Please check the filename').format(self.params.inst_mode))
         elif self.params.inst_mode == 'RAVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC_L':
+            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC':
                 self.logger.warn(('Lyot stop fname does not seem to match for {0}'
                              '  Please check the filename').format(self.params.inst_mode))
 
@@ -161,7 +161,6 @@ class Parameters(object):
             self.params.gain_P = 0
         if not(hasattr(self.params, 'gain_P')):
             self.params.gain_P = 0
-
         # Check if using ``CompassSimInstrument``
         if self.params.instrument == 'CompassSimInstrument':
             assert self.params.npupil == 256, 'Array size for CompassSimInstrument needs to be 256'

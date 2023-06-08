@@ -11,8 +11,7 @@ from types import SimpleNamespace
 
 
 # def read_config(verbose=False, **update_conf):
-_tmp_dir = 'data/'
-
+_tmp_dir = '../../data/'
 
 ncpa_vect = np.zeros(20)
 # ncpa_vect[91] = 0.3
@@ -21,7 +20,7 @@ ncpa_vect = np.random.random(20) * 0.08
 conf = dict(
 
     npupil = 128, #256, #285,                        # number of pixels of the pupil
-    det_size = 15, #14.875,                      # [lam/D] radial size of the detector plane array
+    det_size = 10, #14.875,                      # [lam/D] radial size of the detector plane array
 
     # det_res should be None by default and computed based on the band_specs provdied below
     # this in order to have the correct sampling wrt to the background noise.
@@ -29,9 +28,9 @@ conf = dict(
                                         #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
-    instrument = 'HcipySimInstrument',
-    pupil = 'ELT',   # 'ERIS' or 'ELT', or 'CIRC'
-
+    instrument = 'ADSimInstrument',
+    pupil = 'STD',   # 'ERIS' or 'ELT', or 'CIRC'
+    tel_diam = 8,
     # =======
     #   Observing Modes
     # =======
@@ -43,16 +42,17 @@ conf = dict(
     #   ELT -> IMG_LM or IMG_N
     #   CVC -> CVC_LM or CVC_N
     #   RAVC -> RAVC_LM
-    inst_mode = 'ELT',                  # HCI instrument mode
+    inst_mode = 'CVC',                  # HCI instrument mode
     vc_charge = 2,                      # (CVC and RAVC only) vortex topological charge
-    vc_vector = False,                  # (CVC and RAVC only) simulate a vector vortex instead of a scalar one
+    vc_vector = True,                  # (CVC and RAVC only) simulate a vector vortex instead of a scalar one
+    f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
 
 
     # ======
     #    Photometry
     # ======
-    noise = 2,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
-    mag = 3,                            # star magnitude at selected band
+    noise = 0  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
+    mag = 0,                            # star magnitude at selected band
 
     # --- the 3 following parameters should be replaced by the 'band_specs provided below'
     ## L-filter
@@ -78,9 +78,9 @@ conf = dict(
     # =========
     #  Kernel algorithm
     # =========
-    asym_stop = False,
+    asym_stop = True,
     asym_angle = 0,                   # [optional]
-    asym_width = 0.15,                  # [optional]
+    asym_width = 0, # 0.01,                  # [optional]
     asym_model_fname = None, #toto.fits.gz',              # [optional]
     # asym_telDiam = 40,
     asym_nsteps=33, # nb of steps along the pupil diameter
@@ -110,7 +110,7 @@ conf = dict(
     psi_filt_radius = 10,          # [lbda/D]
 
     # PSI scaling --- because of unknown scaling factor of NCPA
-    ncpa_expected_rms = 156, #np.sqrt(np.sum(ncpa_vect**2)) * 3.8e-6 / 6.28*1e9, #181, #155, #80 #250,        # expected NCPA in [nm]
+    ncpa_expected_rms = np.sqrt(np.sum(ncpa_vect**2)) * 3.8e-6 / 6.28*1e9, #181, #155, #80 #250,        # expected NCPA in [nm]
 
     # ============
     #   NCPA

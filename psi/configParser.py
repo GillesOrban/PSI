@@ -2,6 +2,8 @@ import traceback
 import sys
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 from .helperFunctions import LazyLogger
+from .psi_utils.photometry_definition import PHOT
+import os
 
 class ConfigurationError(Exception):
     pass
@@ -94,9 +96,26 @@ class Parameters(object):
         '''
             Performs a number of sanity checks on the configuration parameters
         '''
-        # TODO had a check that the Lyot stop is for the correct mode and band
-        #       look at the file name and search for strings
+        if hasattr(self.params, 'band'):
+            # if parameters as the parameter band defined, 
+            # read the photometric definition from the dict
+            self.params.wavelength = PHOT[self.params.band]['lam']
+            self.params.flux_zpt = PHOT[self.params.band]['flux_star']
+            self.params.flux_bckg = PHOT[self.params.band]['flux_bckg']
+            self.params.pscale = PHOT[self.params.band]['pscale']
 
+        if not(hasattr(self.params, 'telescope_diameter')):
+            # TODO see how telescope_diameter can be use by instrument HCIpySimulator
+            # Assume ELT by default
+            self.params.telescope_diameter = 36.905
+        if not(hasattr(self.params, 'pscale')):
+            # default pixel scale given by METIS_L
+            self.params.pscale = 5.47
+        if not(hasattr(self.params, 'det_res')):
+            self.params.det_res = None
+
+
+        # TODO check consistency between Lyot stop and band
         # check, based on the band, that the zeropoint is according to defined 'constants'
         #  otherwise print a 'warning'
         if self.params.inst_mode == 'CVC':
@@ -133,14 +152,19 @@ class Parameters(object):
                     format(default_start_idx))
                 self.params.psi_start_mode_idx = default_start_idx
 
-
+        if not(hasattr(self.params, 'gain_I')):
+            self.params.gain_I = 0.4
+            self.params.gain_P = 0
+        if not(hasattr(self.params, 'gain_P')):
+            self.params.gain_P = 0
 
         # Check if using ``CompassSimInstrument``
         if self.params.instrument == 'CompassSimInstrument':
+            assert self.params.npupil == 256, 'Array size for CompassSimInstrument needs to be 256'
             if os.path.isfile(self.params.f_aperture) is False:
                 self.logger.error('No aperture file, cannot proceed')
                 raise ConfigurationError("No aperture file")
-        pass
+        # pass
 
         # Saving
         if self.params.save_phase_screens and not(self.params.save_loop_statistics):
@@ -151,6 +175,13 @@ class Parameters(object):
         '''
         Compute some parameters based on the configuration file parameters
         '''
+        if self.params.det_res is None:
+            self.params.det_res = self.params.wavelength /\
+                  self.params.telescope_diameter * 206264.8 /\
+                  (self.params.pscale * 1e-3)
+            self.logger.info('Detector resolution is '
+                             '{0:.2f} px/(lbda/D)'.format(self.params.det_res))
+
         self.params.nb_ao_frames_per_science = int(self.params.dit / \
             (self.params.ao_frame_decimation / self.params.ao_framerate))
 

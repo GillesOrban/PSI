@@ -26,11 +26,11 @@ conf = dict(
     # =======
     #   Observing Modes
     # =======
-    #    0. mode = 'ELT'  for no coronagraph (only telescope)
+    #    0. mode = 'IMG'  for no coronagraph (only telescope)
     #    1. mode = 'CVC'  for Classical Vortex Coronagraph
     #    2. mode = 'RAVC' for Ring Apodized Vortex Coronagraph
     #    (3. mode = 'APP'  for Apodizing Phase Plate)
-    inst_mode = 'ELT',                  # HCI instrument mode
+    inst_mode = 'IMG',                  # HCI instrument mode
     vc_charge = 2,                      # (CVC and RAVC only) vortex topological charge
     vc_vector = False,                  # (CVC and RAVC only) simulate a vector vortex instead of a scalar one
 

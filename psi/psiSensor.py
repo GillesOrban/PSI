@@ -560,7 +560,7 @@ class PsiSensor():
                       self._ncpa_estimate * self.ncpa_scaling,
                       gain_I * self._ncpa_modes * self.ncpa_scaling)
 
-    def loop(self):
+    def loop(self, **kwargs):
         '''
             Run PSI for a number of iterations.
             At each iterations:
@@ -571,7 +571,7 @@ class PsiSensor():
                 4. (optional) save loop statistics at the end of the for-loop
         '''
         for i in range(self.cfg.params.psi_nb_iter):
-            self.next()
+            self.next(**kwargs)
             self.evaluateSensorEstimate()
             if self.cfg.params.save_phase_screens:
                 self._store_phase_screens_to_file(self.iter)
@@ -647,7 +647,7 @@ class PsiSensor():
         ax = plt.subplot(gs[2, :])
         if self.cfg.params.psi_correction_mode is not 'all':
             mm=np.arange(self.cfg.params.psi_start_mode_idx,
-                self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
+                self.cfg.params.psi_nb_modes + 1) #+ self.cfg.params.psi_start_mode_idx)
             plt.plot(mm, ncpa_modes, label='last NCPA correction')
             plt.plot(mm, self._ncpa_modes_integrated, c='k', ls='--', label='integrated')
             # plt.title('Last NCPA modes')

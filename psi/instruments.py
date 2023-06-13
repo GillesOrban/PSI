@@ -508,20 +508,20 @@ class CompassSimInstrument(GenericInstrument):
 
         # TODO  GOX (merge 08/06/2023): test mono- and poly- sequential propagation
         def _propagate_single(total_phase_cube, wlen=1):
-          wf_post_0 = hcipy.Wavefront(np.exp(1j * total_phase_cube[0] / wlen) * self.aperture, wlen)
-          wf_post_0.total_power = self.num_photons
-          nx, ny = img_one.shaped.shape
-          self._image_cube = np.zeros((nbOfFrames, nx, ny))
-          self._image_cube[0] = self.optical_model(wf_post_0).power.shaped
-          if nbOfFrames>1:
-              for i in range(1, total_phase_cube.shape[0]):
-                  wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube[i] / wlen) * self.aperture, wlen)
-                  wf_post_.total_power = self.num_photons
-                  self._image_cube[i] = self.optical_model(wf_post_).power.shaped   
-           return self._image_cube
+            wf_post_0 = hcipy.Wavefront(np.exp(1j * total_phase_cube[0] / wlen) * self.aperture, wlen)
+            wf_post_0.total_power = self.num_photons
+            nx, ny = img_one.shaped.shape
+            self._image_cube = np.zeros((nbOfFrames, nx, ny))
+            self._image_cube[0] = self.optical_model(wf_post_0).power.shaped
+            if nbOfFrames>1:
+                for i in range(1, total_phase_cube.shape[0]):
+                    wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube[i] / wlen) * self.aperture, wlen)
+                    wf_post_.total_power = self.num_photons
+                    self._image_cube[i] = self.optical_model(wf_post_).power.shaped   
+            return self._image_cube
         
         if bandwidth == 0:
-          self._image_cube = _propagate_single(total_phase_cube)
+            self._image_cube = _propagate_single(total_phase_cube)
 #             wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
 #             # Setting number of photons

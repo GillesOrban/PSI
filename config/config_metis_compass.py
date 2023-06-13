@@ -8,7 +8,7 @@ conf = dict(
     # number of pixels of the pupil:
     npupil=256,     # 285
     # size of the detector plane array [lam/D]:
-    det_size=10,    # 14.875,
+    det_size=15,    # 14.875,
         
     # -- Instrument name --
     # Must be a class present in ``instruments.py``
@@ -49,7 +49,7 @@ conf = dict(
     f_lyot_stop=_tmp_dir+'pupil/ls_CVC_N2_119_dRext=0.0268_dRint=0.09_dRspi=0.0357.fits',
 
     # RAVC LS L-band:
-    f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
+    # f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
 
     # Filename for the entrance apodization ('RAVC' and 'APP'?)
     f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
@@ -72,7 +72,7 @@ conf = dict(
     # star magnitude at selected band
     mag=6,
     # Polychromatic bandwidth
-    bandwidth = 0.4, 
+    bandwidth=0.0,
     # science detector integration time [s]
     dit=0.1,
 

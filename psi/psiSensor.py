@@ -154,6 +154,7 @@ class PsiSensor():
                                                 self.cfg.params.save_basedir)
             else:
                 self._directory = self.cfg.params.save_dirname
+
             if not os.path.exists(self._directory):
                 os.makedirs(self._directory)
 
@@ -162,7 +163,7 @@ class PsiSensor():
 
             # copy current configuration to text file
             dump_config_to_text_file(self._directory + '/config/' + 'current_config.txt',
-                                     sorted(self.cfg.params))
+                                     self.cfg.params)
 
             if self.cfg.params.save_phase_screens:
                 self._directory_phase = self._directory + 'residualNCPA/'

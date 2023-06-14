@@ -75,7 +75,7 @@ def dump_config_to_text_file(file_name, cfg):
         cfg : namespace
     '''
     with open(file_name, 'w') as f:
-        json.dump(cfg.__dict__, f, indent=2)
+        json.dump(sorted(cfg.__dict__), f, indent=2)
 
 
 def read_config_from_text_file(file_name):

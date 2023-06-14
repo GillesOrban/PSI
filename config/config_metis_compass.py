@@ -167,6 +167,7 @@ conf = dict(
     save_loop_statistics=True,
     save_phase_screens=False,
     save_basedir='/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    save_dirname = None,
 
     check_psi_convergence=False,
 )

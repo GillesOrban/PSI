@@ -19,7 +19,8 @@ import importlib
 import psi.psi_utils as psi_utils
 from .configParser import loadConfiguration
 from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
-from .helperFunctions import LazyLogger, timeit, build_directory_name, copy_cfgFileToDir
+from .helperFunctions import LazyLogger, timeit, build_directory_name, \
+    copy_cfgFileToDir, dump_config_to_text_file
 
 from astropy.visualization import imshow_norm,\
     SqrtStretch, MinMaxInterval, PercentileInterval, \
@@ -148,19 +149,25 @@ class PsiSensor():
         # -- Plotting & saving results
         # self.fig = plt.figure(figsize=(9, 3))
         if self.cfg.params.save_loop_statistics:
-            self._directory = build_directory_name(self._config_file,
-                                             self.cfg.params.save_basedir)
+            if self.cfg.params.save_dirname is None or self.cfg.params.save_dirname=='': 
+                self._directory = build_directory_name(self._config_file,
+                                                self.cfg.params.save_basedir)
             if not os.path.exists(self._directory):
                 os.makedirs(self._directory)
 
-            # copy config file to directory
+            # copy initial config file to directory
             copy_cfgFileToDir(self._directory, self._config_file)
+
+            # copy current configuration to text file
+            dump_config_to_text_file(self._directory + '/config/' + 'current_config.txt',
+                                     sorted(self.cfg.params))
 
             if self.cfg.params.save_phase_screens:
                 self._directory_phase = self._directory + 'residualNCPA/'
                 os.mkdir(self._directory_phase)
 
-            self.logger.info('Results will be stored in {0}'.format(self._directory))
+            self.logger.info('Results will be stored in '
+                             '{0}'.format(self._directory))
 
 
     def _save_loop_stats(self):

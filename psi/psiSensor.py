@@ -152,6 +152,8 @@ class PsiSensor():
             if self.cfg.params.save_dirname is None or self.cfg.params.save_dirname=='': 
                 self._directory = build_directory_name(self._config_file,
                                                 self.cfg.params.save_basedir)
+            else:
+                self._directory = self.cfg.params.save_dirname
             if not os.path.exists(self._directory):
                 os.makedirs(self._directory)
 

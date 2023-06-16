@@ -4,7 +4,12 @@ import aotools
 from astropy.modeling import models
 
 def reorthonormalize(modal_basis, aperture):
+    # modal_basis.transformation_matrix can contain NaN in some cases...
+    #   hopefully there should be masked by the aperture
+    modal_basis.transformation_matrix[np.isnan(modal_basis.transformation_matrix)]=0
+
     transformation_matrix = modal_basis.transformation_matrix * aperture[:, np.newaxis]
+    transformation_matrix[np.isnan(transformation_matrix)] = 0
     # q, r = np.linalg.qr(transformation_matrix, mode='complete')
     
     nvalid_pixels = np.sum(aperture)

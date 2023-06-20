@@ -93,6 +93,7 @@ conf = dict(
     asym_stop=True,
     asym_angle=180,                   # [optional]
     asym_width=0.1,                  # [optional]
+    asym_mask_option='two_spiders',
     asym_model_fname=None, #toto.fits.gz',              # [optional]
     # TODO remove this variable, by setting automatically tel_daim in ConfigParser
     asym_telDiam=40,

@@ -168,29 +168,14 @@ class CompassSimInstrument(GenericInstrument):
         if self._asym_stop:
             self._asym_angle = conf.asym_angle
             self._asym_width = conf.asym_width
+            self._asym_mask = conf.asym_mask
         # Aperture definition -- GOX: see also modification later in _setup to cope with slight mismatch with the NCPA maps
         self.aperture = psi_utils.make_COMPASS_aperture(conf.f_aperture,
                                                   npupil=self._size_pupil_grid,
                                                   rot90=True,
                                                   binary=True)(self.pupilGrid)
-        if self._inst_mode == 'IMG' and self._asym_stop:
-            # spider_gen = hcipy.make_spider_infinite((0,0),
-            #                                         self._asym_angle,
-            #                                         self._asym_width)
-            # asym_arm = spider_gen(self.pupilGrid)
-            # self.aperture *= asym_arm
-
-            spider_gen = hcipy.make_spider_infinite((0.25,0),
-                                                    self._asym_angle,
-                                                    self._asym_width)
-            asym_arm = spider_gen(self.pupilGrid)
-            self.aperture *= asym_arm
-
-            spider_gen_2 = hcipy.make_spider_infinite((0.15,0.25),
-                                                    self._asym_angle+60,
-                                                    self._asym_width)
-            asym_arm_2 = spider_gen_2(self.pupilGrid)
-            self.aperture *= asym_arm_2
+        if  self._asym_stop and self._inst_mode == 'IMG':
+            self.aperture *= self._asym_mask(self.pupilGrid)
 
         # self.aperture = np.rot90(self.aperture)
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
@@ -904,25 +889,10 @@ class HcipySimInstrument(GenericInstrument):
         if self._asym_stop:
             self._asym_angle = conf.asym_angle
             self._asym_width = conf.asym_width
+            self._asym_mask = conf.asym_mask
 
-        if self._inst_mode == 'IMG' and self._asym_stop:
-            # spider_gen = hcipy.make_spider_infinite((0,0),
-            #                                         self._asym_angle,
-            #                                         self._asym_width * self.diam)
-            # asym_arm = spider_gen(self.pupilGrid)
-            # self.aperture *= asym_arm
-
-            spider_gen = hcipy.make_spider_infinite((-2,0),
-                                                    self._asym_angle,
-                                                    self._asym_width * self.diam)
-            asym_arm = spider_gen(self.pupilGrid)
-            self.aperture *= asym_arm
-
-            spider_gen_2 = hcipy.make_spider_infinite((0,-2),
-                                                    self._asym_angle+90,
-                                                    self._asym_width * self.diam)
-            asym_arm_2 = spider_gen_2(self.pupilGrid)
-            self.aperture *= asym_arm_2
+        if  self._asym_stop and self._inst_mode == 'IMG':
+            self.aperture *= self._asym_mask(self.pupilGrid)
 
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
             self.logger.warning('CVC / RAVC not implemented')

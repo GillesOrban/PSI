@@ -4,10 +4,48 @@ import os
 # from ..field import CartesianGrid, UnstructuredCoords, make_hexagonal_grid, Field
 # from .generic import *
 
+import hcipy
 # These two lines maybe needed in the future for making custom apertures so I have left them in
 from hcipy.field import CartesianGrid, UnstructuredCoords, make_hexagonal_grid, Field
 from hcipy.aperture.generic import *
 from .psi_utils import crop_img, resize_img
+
+
+def mask_asym_baseline(width, angle=90):
+
+    def func(grid):
+        spider1 = hcipy.make_spider_infinite((0, 0),
+                                             angle,
+                                             width)
+
+        return spider1(grid)
+
+    return func
+
+
+def mask_asym_two(width, angle=180,
+                  pos1=(0.275, 0),
+                  pos2=(0.16, 0.275)):
+    '''
+    create a mask with two ticker spiders
+    1. given by angle, pos1
+    2. given by (angle+60), pos2
+
+    if want the spider to be the full radius of the aperture, use
+    pos1=(0,0), pos2=(0,0)
+    '''
+
+    def func(grid):
+        spider1 = hcipy.make_spider_infinite(pos1,
+                                             angle,
+                                             width)
+        spider2 = hcipy.make_spider_infinite(pos2,
+                                             angle + 60,
+                                             width)
+        return spider1(grid) * spider2(grid)
+
+    return func
+
 
 def make_vlt_aperture():
     pass

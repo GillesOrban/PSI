@@ -4,6 +4,7 @@ import os
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 from .helperFunctions import LazyLogger
 from .psi_utils.photometry_definition import PHOT
+from .psi_utils.apertures import mask_asym_baseline, mask_asym_two
 import os
 
 class ConfigurationError(Exception):
@@ -217,7 +218,22 @@ class Parameters(object):
 
         self.params.num_photons_bkg = self.params.dit * self.params.flux_bckg
 
-
+        if self.params.asym_stop is True:
+            if self.params.instrument == 'HcipySimInstrument':
+                self.params.asym_width *= self.params.tel_diam
+            if hasattr(self.params, 'asym_mask_option') is False:
+                self.params.asym_mask = mask_asym_baseline(self.params.asym_width,
+                                                           self.params.asym_angle)
+            elif self.params.asym_mask_option=='one_spider':
+                self.params.asym_mask = mask_asym_baseline(self.params.asym_width,
+                                                           self.params.asym_angle)
+            elif self.params.asym_mask_option=='two_spiders':
+                self.params.asym_mask = mask_asym_two(self.params.asym_width,
+                                                      self.params.asym_angle)
+            else:
+                self.logger.warn('Mask option not known. Default to single bar')
+                self.params.asym_mask = mask_asym_baseline(self.params.asym_width,
+                                                           self.params.asym_angle)
 
 def loadConfiguration(filename):
         '''

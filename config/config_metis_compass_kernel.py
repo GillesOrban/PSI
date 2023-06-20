@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 
 # def read_config(verbose=False, **update_conf):
-_tmp_dir = '/Users/orban/Projects/METIS/4.PSI/psi_github/data/'
+_tmp_dir = os.path.dirname(__file__) + '/../data/'
 
 conf = dict(
     # number of pixels of the pupil

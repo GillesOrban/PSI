@@ -105,10 +105,15 @@ class KernelSensor():
         # Build or load the Kernel model
         if self.cfg.params.asym_model_fname is None or '':
             self.logger.info('Builing KPI model')
-            self._buildModelKPI(fname='toto.fits.gz')
+            now = datetime.datetime.now()
+            timetag = now.strftime("%Y-%m-%dT%H:%M:%S")
+            self.cfg.params.asym_model_fname = 'KPI_{0}.fits.gz'.format(timetag)
+            self._buildModelKPI(fname=self.cfg.params.asym_model_fname)
         else:
-            self.logger.info('Loading KPI model : {0}'.format(self.cfg.params.asym_model_fname))
-            self._loadKPO(fname_model = self.cfg.params.asym_model_fname)
+            self.logger.info('Loading KPI model : '
+                             '{0}'.format(self.cfg.params.asym_model_fname))
+        
+        self._loadKPO(fname_model=self.cfg.params.asym_model_fname)
 
 
         # Init logging buffer

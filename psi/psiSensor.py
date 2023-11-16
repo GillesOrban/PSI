@@ -19,7 +19,8 @@ import importlib
 import psi.psi_utils as psi_utils
 from .configParser import loadConfiguration
 from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
-from .helperFunctions import LazyLogger, timeit, build_directory_name, copy_cfgFileToDir
+from .helperFunctions import LazyLogger, timeit, build_directory_name, \
+    copy_cfgFileToDir, dump_config_to_text_file
 
 from astropy.visualization import imshow_norm,\
     SqrtStretch, MinMaxInterval, PercentileInterval, \
@@ -148,19 +149,28 @@ class PsiSensor():
         # -- Plotting & saving results
         # self.fig = plt.figure(figsize=(9, 3))
         if self.cfg.params.save_loop_statistics:
-            self._directory = build_directory_name(self._config_file,
-                                             self.cfg.params.save_basedir)
+            if self.cfg.params.save_dirname is None or self.cfg.params.save_dirname=='': 
+                self._directory = build_directory_name(self._config_file,
+                                                self.cfg.params.save_basedir)
+            else:
+                self._directory = self.cfg.params.save_basedir + self.cfg.params.save_dirname
+
             if not os.path.exists(self._directory):
                 os.makedirs(self._directory)
 
-            # copy config file to directory
+            # copy initial config file to directory
             copy_cfgFileToDir(self._directory, self._config_file)
+
+            # copy current configuration to text file
+            dump_config_to_text_file(self._directory + '/config/' + 'current_config.txt',
+                                     self.cfg.params)
 
             if self.cfg.params.save_phase_screens:
                 self._directory_phase = self._directory + 'residualNCPA/'
                 os.mkdir(self._directory_phase)
 
-            self.logger.info('Results will be stored in {0}'.format(self._directory))
+            self.logger.info('Results will be stored in '
+                             '{0}'.format(self._directory))
 
 
     def _save_loop_stats(self):
@@ -560,7 +570,7 @@ class PsiSensor():
                       self._ncpa_estimate * self.ncpa_scaling,
                       gain_I * self._ncpa_modes * self.ncpa_scaling)
 
-    def loop(self):
+    def loop(self, **kwargs):
         '''
             Run PSI for a number of iterations.
             At each iterations:
@@ -571,7 +581,7 @@ class PsiSensor():
                 4. (optional) save loop statistics at the end of the for-loop
         '''
         for i in range(self.cfg.params.psi_nb_iter):
-            self.next()
+            self.next(**kwargs)
             self.evaluateSensorEstimate()
             if self.cfg.params.save_phase_screens:
                 self._store_phase_screens_to_file(self.iter)
@@ -647,7 +657,7 @@ class PsiSensor():
         ax = plt.subplot(gs[2, :])
         if self.cfg.params.psi_correction_mode is not 'all':
             mm=np.arange(self.cfg.params.psi_start_mode_idx,
-                self.cfg.params.psi_nb_modes + self.cfg.params.psi_start_mode_idx)
+                self.cfg.params.psi_nb_modes + 1) #+ self.cfg.params.psi_start_mode_idx)
             plt.plot(mm, ncpa_modes, label='last NCPA correction')
             plt.plot(mm, self._ncpa_modes_integrated, c='k', ls='--', label='integrated')
             # plt.title('Last NCPA modes')

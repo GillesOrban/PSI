@@ -168,17 +168,14 @@ class CompassSimInstrument(GenericInstrument):
         if self._asym_stop:
             self._asym_angle = conf.asym_angle
             self._asym_width = conf.asym_width
+            self._asym_mask = conf.asym_mask
         # Aperture definition -- GOX: see also modification later in _setup to cope with slight mismatch with the NCPA maps
         self.aperture = psi_utils.make_COMPASS_aperture(conf.f_aperture,
                                                   npupil=self._size_pupil_grid,
                                                   rot90=True,
                                                   binary=True)(self.pupilGrid)
-        if self._inst_mode == 'ELT' and self._asym_stop:
-            spider_gen = hcipy.make_spider_infinite((0,0),
-                                                    self._asym_angle,
-                                                    self._asym_width)
-            asym_arm = spider_gen(self.pupilGrid)
-            self.aperture *= asym_arm
+        if  self._asym_stop and self._inst_mode == 'IMG':
+            self.aperture *= self._asym_mask(self.pupilGrid)
 
         # self.aperture = np.rot90(self.aperture)
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
@@ -194,12 +191,12 @@ class CompassSimInstrument(GenericInstrument):
                                                             npupil=self._size_pupil_grid,
                                                             rot90=True)(self.pupilGrid)
 
-        if self._inst_mode != 'ELT' and self._asym_stop:
-            spider_gen = hcipy.make_spider_infinite((0,0),
-                                                    self._asym_angle,
-                                                    self._asym_width)
-            asym_arm = spider_gen(self.pupilGrid)
-            self.lyot_stop_mask *= asym_arm
+        # if self._inst_mode != 'IMG' and self._asym_stop:
+        #     spider_gen = hcipy.make_spider_infinite((0,0),
+        #                                             self._asym_angle,
+        #                                             self._asym_width)
+        #     asym_arm = spider_gen(self.pupilGrid)
+        #     self.lyot_stop_mask *= asym_arm
 
         self.noise = conf.noise
         # if self.noise == 1:
@@ -321,6 +318,9 @@ class CompassSimInstrument(GenericInstrument):
         # lyot_stop_mask = hp.circular_aperture(0.95)
         # lyot_stop = hcipy.Apodizer(lyot_stop_mask)
 
+        else:
+            self.logger.error('Mode {0} is not supported'.format(self._inst_mode))
+
 
 
     def _initialize_dynamic_ncpa(self):
@@ -374,7 +374,7 @@ class CompassSimInstrument(GenericInstrument):
         '''read/compute a new NCPA map'''
 
         if ((current_time - self._zero_time_ms) %  self.wv_sampling) == 0:
-            # self.logger.info('Updating WV map')
+            # self.logger.info('Updating WV map, {0}, {1}, {2}'.format(current_time, self._zero_time_ms, self.wv_sampling))
             size_pupil_grid = int(self.pupilGrid.shape[0])
             self.phase_wv  = self.conv2rad_wv * \
                 psi_utils.process_screen(self.phase_wv_cube[self._wv_index],
@@ -489,6 +489,8 @@ class CompassSimInstrument(GenericInstrument):
 
             # Update water vapour phase
             if self.include_water_vapour :
+                # TODO timeIdxInMs needs to be a global variable: if timeIdxInMs is only a single number, 
+                #   the update would happen systematically without taking wv_sampling into account
                 self._update_water_vapour(self._start_time_last_sci_dit + timeIdxInMs[i])
                 self.phase_wv_integrated += self.phase_wv
                 self.nb_wv_integrated += 1
@@ -508,20 +510,20 @@ class CompassSimInstrument(GenericInstrument):
 
         # TODO  GOX (merge 08/06/2023): test mono- and poly- sequential propagation
         def _propagate_single(total_phase_cube, wlen=1):
-          wf_post_0 = hcipy.Wavefront(np.exp(1j * total_phase_cube[0] / wlen) * self.aperture, wlen)
-          wf_post_0.total_power = self.num_photons
-          nx, ny = img_one.shaped.shape
-          self._image_cube = np.zeros((nbOfFrames, nx, ny))
-          self._image_cube[0] = self.optical_model(wf_post_0).power.shaped
-          if nbOfFrames>1:
-              for i in range(1, total_phase_cube.shape[0]):
-                  wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube[i] / wlen) * self.aperture, wlen)
-                  wf_post_.total_power = self.num_photons
-                  self._image_cube[i] = self.optical_model(wf_post_).power.shaped   
-           return self._image_cube
+            wf_post_0 = hcipy.Wavefront(np.exp(1j * total_phase_cube[0] / wlen) * self.aperture, wlen)
+            wf_post_0.total_power = self.num_photons
+            nx, ny = img_one.shaped.shape
+            self._image_cube = np.zeros((nbOfFrames, nx, ny))
+            self._image_cube[0] = self.optical_model(wf_post_0).power.shaped
+            if nbOfFrames>1:
+                for i in range(1, total_phase_cube.shape[0]):
+                    wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube[i] / wlen) * self.aperture, wlen)
+                    wf_post_.total_power = self.num_photons
+                    self._image_cube[i] = self.optical_model(wf_post_).power.shaped   
+            return self._image_cube
         
         if bandwidth == 0:
-          self._image_cube = _propagate_single(total_phase_cube)
+            self._image_cube = _propagate_single(total_phase_cube)
 #             wf_post_ = hcipy.Wavefront(np.exp(1j * total_phase_cube) * self.aperture)
 
 #             # Setting number of photons
@@ -887,25 +889,10 @@ class HcipySimInstrument(GenericInstrument):
         if self._asym_stop:
             self._asym_angle = conf.asym_angle
             self._asym_width = conf.asym_width
+            self._asym_mask = conf.asym_mask
 
-        if self._inst_mode == 'ELT' and self._asym_stop:
-            # spider_gen = hcipy.make_spider_infinite((0,0),
-            #                                         self._asym_angle,
-            #                                         self._asym_width * self.diam)
-            # asym_arm = spider_gen(self.pupilGrid)
-            # self.aperture *= asym_arm
-
-            spider_gen = hcipy.make_spider_infinite((-2,0),
-                                                    self._asym_angle,
-                                                    self._asym_width * self.diam)
-            asym_arm = spider_gen(self.pupilGrid)
-            self.aperture *= asym_arm
-
-            spider_gen_2 = hcipy.make_spider_infinite((0,-2),
-                                                    self._asym_angle+90,
-                                                    self._asym_width * self.diam)
-            asym_arm_2 = spider_gen_2(self.pupilGrid)
-            self.aperture *= asym_arm_2
+        if  self._asym_stop and self._inst_mode == 'IMG':
+            self.aperture *= self._asym_mask(self.pupilGrid)
 
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
             self.logger.warning('CVC / RAVC not implemented')
@@ -954,7 +941,8 @@ class HcipySimInstrument(GenericInstrument):
 
     def _setup_modal_basis(self):
         pupil_grid = self.pupilGrid
-        if self._inst_mode == 'ELT':
+        #if self._inst_mode == 'ELT':
+        if self.tel_diam > 20:
             self._nmodes = 1500
         else:
             self._nmodes = 500
@@ -1022,7 +1010,7 @@ class HcipySimInstrument(GenericInstrument):
             self.optical_model = hcipy.OpticalSystem([self._vvc_element,
                                                       self._lyot_stop_element,
                                                       self._prop])
-        elif self._inst_mode == 'ELT' or self._inst_mode == 'IMG':
+        elif self._inst_mode == 'IMG':
             self.logger.info('Building a simple imager in HCIPy')
             self.optical_model = hcipy.OpticalSystem([self._prop])
 
@@ -1048,7 +1036,8 @@ class HcipySimInstrument(GenericInstrument):
 
         elif self._inst_mode == 'APP':
             self.logger.warning('APP not supported')
-
+        else:
+            self.logger.error('Mode {0} is not supported'.format(self._inst_mode))
 
 
     def _initialize_ncpa(self, coeffs, modal_basis=None):

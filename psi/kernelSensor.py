@@ -19,6 +19,7 @@ BLM : BaseLine mapping matrix = A
 import hcipy
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import sys
 
 import time
@@ -388,7 +389,10 @@ class KernelSensor():
 
 
     def show(self):
-        plt.clf()
+        '''
+        TODO tidy up and find solution for live display and video saving
+        '''
+        # plt.clf()
 
         # plt.subplot(141)
         # imshow_norm(img.mean(0), stretch=LogStretch())
@@ -422,13 +426,14 @@ class KernelSensor():
         ax3.set_title('NCPA correction')
         ax4.set_title('Residuals')
         plt.tight_layout()
-        plt.draw()
-        plt.pause(0.01)
-        time.sleep(0.1)
-        #ims.append([im1,im2, im3, im4])
+        # plt.draw()
+        # plt.pause(0.01)
+        # time.sleep(0.1)
+        self._ims.append([im1, im2, im3, im4])
 
     def loop(self, **kwargs):
         # TODO replace psi_nb_iter by an agnostic 'nb_iter'
+        self._ims = []  # Matplotlib Artist list 
         for i in range(self.cfg.params.psi_nb_iter):
             self.next(**kwargs)
             self.evaluateSensorEstimate()
@@ -437,6 +442,13 @@ class KernelSensor():
 
         if self.cfg.params.save_loop_statistics:
             self._save_loop_stats()
+
+    def save_video(self, fname='toto.mp4', fps=0.5):
+        fig=plt.gcf()
+        ani = animation.ArtistAnimation(fig, self._ims, interval=500,
+                                        blit=False, repeat=False)
+        FFwriter = animation.FFMpegWriter(fps=fps)
+        ani.save(fname, writer=FFwriter)
 
     # def evaluateSensorEstimate(self, verbose=True):
     #     res_ncpa_qs = self.inst.phase_ncpa + self.inst.phase_ncpa_correction

@@ -22,7 +22,7 @@ conf = dict(
     #    'CVC'  for Classical Vortex Coronagraph
     #    'RAVC' for Ring Apodized Vortex Coronagraph
     #    WIP : 3. mode = 'APP'  for Apodizing Phase Plate
-    inst_mode='RAVC',
+    inst_mode='IMG',
     # Vortex topological charge ('CVC' and 'RAVC')
     vc_charge=2,
     # Vector or scalar vortex ('CVC' and 'RAVC')
@@ -118,8 +118,8 @@ conf = dict(
     ncpa_expected_rms=None,     # 100, # 50, #250,        
 
     # Control gain
-    gain_I=0.6, #0.2 for IMG
-    gain_P=0.3, #0.1 for IMG
+    gain_I=0.2, #0.6, #0.2 for IMG
+    gain_P=0.1, #0.3, #0.1 for IMG
 
     # ============
     #   NCPA

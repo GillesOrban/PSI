@@ -116,7 +116,7 @@ conf = dict(
     # [Hz] framerate of the psi correction
     psi_framerate=10,
     # number of iterations.
-    psi_nb_iter=10,
+    psi_nb_iter=600,
 
     # How is the PSI estimate process before correction:
     #   'all'     : no projection or filtering

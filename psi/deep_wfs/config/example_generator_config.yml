@@ -1,0 +1,18 @@
+dataset_file: ""  # GOX : path to dataset, not file name
+nb_samples: 100 
+nb_modes: 20 
+mode: 'ONLY_DEFOCUS'
+defocus: 600
+filter: 'L2'
+input_wfe: 200
+pupil_size: 64
+zernike_seed: 1
+tip_tilt: False
+box_size: 256
+
+# after generation, 5 more are added to data_info{} and hf.attrs{}
+# ["0"]: 0
+# ["wavelength"]: setLambda(["filter"])
+# ["channels"]: setChannels(["mode"])
+# ["cx"]: 200
+# ["cy"]: 200

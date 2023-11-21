@@ -1,0 +1,18 @@
+training_data_path: ""  # path and filename of the training dataset.
+model_dir: ""  # path and folder name of the model.
+weights_init_dir: False  #"./models/model_130nm_test/"  # False to use ImageNet pretrained weights, otherwise path to a custom pretrained model.
+split_train: 90  # percentage of the dataset to reserve for training the model.
+nb_workers: 8  # number of workers for PyTorch DataLoader.
+model_name: "resnet34"  # CNN name (choose between 'resnet18', 'resnet34', 'resnet50').
+batch_size: 32  # size of the data fed into the CNN at once.
+learning_rate: 1e-3  # rate at each the CNN weights are updated (starting value, decrease when plateau reached on validation loss).
+optimizer_name: "Adam"  # training optimizer (choose between 'Adam' and 'SGD').
+n_epochs: 5  # number of training epochs (how many times the full dataset is fed to the CNN).
+lr_patience: 15  # learning rate patience: after how many epochs of no improvement in validation loss the learning rate should be divided by 2.
+earlystop_patience: 20  # after how many epochs of no improvement in validation loss the training should be stopped.
+
+# OVERLAPPING CONFIGURATION PARAMS
+# n_modes: 20  # number of Zernike modes to predict (same as in the data).
+# dataset_size: 100  # dataset size (training + validation).
+# n_channels: 1  # number of input channels to the CNN (1: in OR out-of-focus; 2: in AND out-of-focus).
+

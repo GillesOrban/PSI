@@ -1,0 +1,8 @@
+# defines what model is used for inference currently
+# will be used as a config for on-bench correction.
+
+model_dir: ""  # path name of the model '.pth'.
+model_type: "resnet18"  # CNN name (choose between 'resnet18', 'resnet34', 'resnet50').
+filter: 'L2'
+nb_modes: 20 
+

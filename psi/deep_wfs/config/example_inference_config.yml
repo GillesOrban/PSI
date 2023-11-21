@@ -1,0 +1,6 @@
+# defines what model is used for inference currently
+# will be used as a config for on-bench correction.
+
+model_dir: ""  # path and folder name of the model.
+model_name: "resnet34"  # CNN name (choose between 'resnet18', 'resnet34', 'resnet50').
+filter: 'L2'

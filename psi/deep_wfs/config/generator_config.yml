@@ -1,4 +1,4 @@
-dataset_file: ""  # GOX : path to dataset, not file name
+dataset_path: "./"  # GOX : path to dataset, not file name
 nb_samples: 100 
 nb_modes: 20 
 # mode: 'ONLY_DEFOCUS'

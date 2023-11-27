@@ -8,6 +8,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 import math
+from torchvision import transforms
+import psi.deep_wfs.src.Transforms as custom_transforms
+
 
 """
     container sizes:
@@ -109,3 +112,12 @@ def splitDataLoader(dataset, conf, device, split=[0.9, 0.1],
                                 pin_memory=pin_mem)
 
     return train_dataloader, val_dataloader
+
+
+def normalization(dataset, data_info):
+    transfo_list = [custom_transforms.Normalize()]
+    dataset_norm = psf_dataset(dataset=dataset,
+                               data_info=data_info,
+                               transform=transforms.Compose(transfo_list))
+    
+    return dataset_norm

@@ -15,3 +15,5 @@ config_file='config/config_deep_learning.py'
 deep_sensor = DeepSensor(config_file)
 deep_sensor.setup()
 
+#deep_sensor.next()
+#deep_sensor.show()

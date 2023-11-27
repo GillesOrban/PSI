@@ -15,9 +15,9 @@ import psi.deep_wfs.src.Transforms as custom_transforms
 import psi.deep_wfs.src.Resnet as resnet
 import psi.deep_wfs.utils.dataset_format_pytorch as datapp
 
-from psi.deep_wfs.utils.read_data import readTools
-
-rt = readTools()
+import psi.deep_wfs.utils.read_data as rt
+from psi.deep_wfs.utils.dataset_format_pytorch import normalization
+# rt = readTools()
 
 
 class WrappedModel(nn.Module):
@@ -72,16 +72,16 @@ class dataInfer:
 
         if self.model is None:
             print('Warning: Loading CNN model for the 1st time')
-            model = self.load_model(_config, _data_info)
+            self.model = self.load_model(_config, _data_info)
         
         # Inference
         dataset_input = {"psfs_1": psfs}
-        dataset_normalized = self.normalization(dataset_input, _data_info)
+        dataset_normalized = normalization(dataset_input, _data_info)
 
         zernike_predicted = torch.zeros((_data_info['nb_samples'],
                                          _data_info['nb_modes']))
         for i in range(_data_info['nb_samples']):
-            zernike_predicted[i, :] = model(dataset_normalized[i]["image"].unsqueeze(0))
+            zernike_predicted[i, :] = self.model(dataset_normalized[i]["image"].unsqueeze(0))
 
         # Conversion to Numpy arrays
         rad2nm = _data_info["wavelength"] / (2 * np.pi)
@@ -121,13 +121,13 @@ class dataInfer:
 
         return model
     
-    def normalization(self, dataset, data_info):
-        transfo_list = [custom_transforms.Normalize()]
-        dataset_norm = datapp.psf_dataset(dataset=dataset,
-                                        data_info=data_info,
-                                        transform=transforms.Compose(transfo_list))
+    # def normalization(self, dataset, data_info):
+    #     transfo_list = [custom_transforms.Normalize()]
+    #     dataset_norm = datapp.psf_dataset(dataset=dataset,
+    #                                     data_info=data_info,
+    #                                     transform=transforms.Compose(transfo_list))
         
-        return dataset_norm
+    #     return dataset_norm
     
     def setConfig(self, conf_file=None):
         if conf_file is None:

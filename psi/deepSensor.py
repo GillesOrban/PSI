@@ -3,7 +3,7 @@
 import hcipy
 import numpy as np
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
 import psi.psi_utils as psi_utils
 from .configParser import loadConfiguration
 from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
@@ -14,8 +14,11 @@ from astropy.visualization import imshow_norm,\
     SqrtStretch, MinMaxInterval, PercentileInterval, \
     LinearStretch, SinhStretch, LogStretch, ManualInterval
 
+from psi.deep_wfs.dataset_generator import dataGen
 from psi.deep_wfs.training_model import dataTrain
 from psi.deep_wfs.inference import dataInfer
+
+
 
 class DeepSensor():
 
@@ -25,6 +28,7 @@ class DeepSensor():
         self._config_file = config_file
         self.cfg = loadConfiguration(config_file)
 
+        self.generator = dataGen()  # empty object -- need setting up
         self.trainer = dataTrain()
         self.evaluator = dataInfer()
 
@@ -73,7 +77,24 @@ class DeepSensor():
         - Training 
         - Preparing for future inference
         '''
-        pass
+        self.logger.info('Generating dataset')
+        # If data set do not exists
+        self.generator.setup(self.inst, self.C2M)
+        tag_name = 'toto'
+        self.generator.genData(tag_name)
+
+        # If ok, continue and train
+        self.logger.info('Starting training')
+        self.trainer.setup()
+        # Ask user to continue ?
+        inp = input('Would you like to start training the model ? (q to quit)')
+        if inp == 'q':
+            return 0
+        
+        self.trainer.trainModel()
+
+
+
 
 
     def next(self, leak=1, integrator=True):
@@ -88,7 +109,7 @@ class DeepSensor():
         self._wavefront = self.M2C_matrix.dot(self._modes)
         # _dim = self.inst.pupilGrid.shape[0]
         # self._wavefront = np.reshape(_wavefront, (_dim, _dim))
-        self.inst.setNcpaCorrection(self._wavefront,
+        self.inst.setNcpaCorrection(-self._wavefront,
                                     phase_prop=self.cfg.params.gain_P * \
                                         self._wavefront,
                                     integrator=True,
@@ -105,23 +126,26 @@ class DeepSensor():
         pass
 
     def show(self):
-        ax1 = plt.subplot(141)
+        ax1 = plt.subplot(141, label='science')
         im1, _= imshow_norm(self.science_image, stretch=LogStretch(), ax=ax1)
         vmin = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 1)
         vmax = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 99)
         inter = ManualInterval(vmin, vmax)
         #--
-        ax2 = plt.subplot(142)
+        ax2 = plt.subplot(142, label='dist')
         im2, _=imshow_norm((self.inst.phase_wv + self.inst.phase_ncpa).shaped,
                            interval=inter, ax=ax2)
         #--
-        ax3 = plt.subplot(143)
+        ax3 = plt.subplot(143, label='wfs')
         _dim = self.inst.pupilGrid.shape[0]
-        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
+        # im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
+        #                    self.inst.aperture.shaped,
+        #                    interval=inter, ax=ax3)
+        im3, _=imshow_norm(self._wavefront.shaped * \
                            self.inst.aperture.shaped,
                            interval=inter, ax=ax3)
         #--
-        ax4 = plt.subplot(144)
+        ax4 = plt.subplot(144, label='res')
         im4, _=imshow_norm(self.inst.aperture.shaped *
                            (self.inst.phase_wv + self.inst.phase_ncpa +
                            self.inst.phase_ncpa_correction).shaped,

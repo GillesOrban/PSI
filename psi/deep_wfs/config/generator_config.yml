@@ -1,14 +1,22 @@
-dataset_path: "./"  # GOX : path to dataset, not file name
-nb_samples: 100 
-nb_modes: 20 
+dataset_path: "/mnt/disk12tb/METIS/PSI/datasets/"  # GOX : path to dataset, not file name
+phasescreen_fname: "/mnt/disk12tb/METIS/PSI/WV_screens/cube_285_300nm.fits"
+nb_samples: 10000
+
+# The following attributes are added at setup of generator
+# wavelength
+# nb_modes
+
+
+
+# nb_modes: 20 
 # mode: 'ONLY_DEFOCUS'
 # defocus: 600
-filter: 'L2'
-input_wfe: 200
-pupil_size: 64
-zernike_seed: 1
-tip_tilt: False
-box_size: 256
+#filter: 'L2'
+#input_wfe: 200
+#pupil_size: 64
+#zernike_seed: 1
+#tip_tilt: False
+# box_size: 256
 
 # after generation, 5 more are added to data_info{} and hf.attrs{}
 # ["0"]: 0

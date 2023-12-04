@@ -11,6 +11,10 @@ import psi.deep_wfs.utils.read_data as rt
 from psi.deep_wfs.utils.dataset_format_pytorch import normalization
 import psi.deep_wfs.utils.training_tools as utils
 from psi.helperFunctions import LazyLogger
+import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
+
+
 # rt = readTools()
 # fmt = _fmt()
 
@@ -19,8 +23,8 @@ class dataTrain:
         self.logger = logger
         pass
 
-    def setup(self, conf_file=None):
-        self.setConfig(conf_file)
+    def setup(self, conf_file=None, **kwargs):
+        self.setConfig(conf_file, **kwargs)
         # self._config = _config
         # self._data_info = _data_info
         # if not 'nb_modes' in self._data_info:
@@ -28,15 +32,18 @@ class dataTrain:
         #     self._data_info['nb_modes'] = self._config['nb_modes']
         #     self._data_info['channels'] = 1
         #     self._data_info['wavelength'] = 1
+        dd = self.config['model_dir']
+        self.logger.info('Setting TensorBoard log dir to {0}'.format(dd))
+        self._tb_writer = SummaryWriter(dd)
 
-    def trainModel(self):
+    def trainModel(self, showTrainingCurve=False, useTensorBoard=True):
         '''
         setup/setConfig needs to be called before
         '''
         # Reading information about the data (hdf5 attributes):
         self.data_info = {}
         self.dataset_master = {}
-        self.dataset_master, self.data_info = rt.read_h5(filename=self.config["training_data_path"])
+        self.dataset_master, self.data_info = rt.read_h5(filename=self.config["training_data_fname"])
         self.logger.info("Data the model will be trained on: ")
         for key, val in self.data_info.items():
             print(f"{key}: {val}")
@@ -65,6 +72,16 @@ class dataTrain:
                                     n_channels_out=self.data_info["nb_modes"],
                                     resnet_archi=self.config["model_name"])
                                     #weights_path=pretrained_weights_path)
+
+        # Add model to TensorBoard 
+        if useTensorBoard:
+            dataiter = iter(self.dataset_loaders['train'])
+            dd = next(dataiter)
+            # self._toto_images = images
+            # self._toto_labels = labels
+            self._tb_writer.add_graph(self.model_to_train, dd['image'])
+            # adding a ''projector'' to TensorBoard ?
+            # [...] see here : https://pytorch.org/tutorials/intermediate/tensorboard_tutorial.html
 
         # Moving the model to GPU(s) if possible:
         if torch.cuda.device_count() > 1:
@@ -204,6 +221,17 @@ class dataTrain:
             # Update metrics:
             metric_dict['val_loss'].append(val_loss_epoch)
 
+            # Use TensorBoard
+            if useTensorBoard:
+                self._tb_writer.add_scalars('loss',
+                                           {'training_loss': train_loss_epoch, 
+                                            'validation_loss': val_loss_epoch},
+                                           ep)
+                self._tb_writer.add_scalar('learning_rate', utils.get_lr(optimizer), ep)
+                # self._tb_writer.add_scalar('validation_loss',
+                #                            val_loss_epoch,
+                #                            ep)
+
             # If scheduler is ReduceLROnPlateau we need to give current validation loss:
             optim_scheduler.step(metric_dict['val_loss'][ep])
 
@@ -229,6 +257,13 @@ class dataTrain:
 
         tot_day, tot_hour, tot_min, tot_sec = utils.get_time(time.time() - since)
         self.logger.info('[-----] All epochs completed in {0:.0f}d {1:.0f}h {2:.0f}m {3:.0f}s'.format(tot_day, tot_hour, tot_min, tot_sec))
+
+        if useTensorBoard:
+            self._tb_writer.close()
+
+        # Displaying the loss-epoch curve:
+        if showTrainingCurve:
+            self.plotLoss(metric_dict["train_loss"], metric_dict["val_loss"], save_figure=True) 
 
         return early_stopping.best_loss
 
@@ -260,15 +295,15 @@ class dataTrain:
             json.dump(self.data_info, f, indent=4, cls=utils.NpEncoder)
 
 
-    def setConfig(self, conf_file, inWarpper=None, **kwargs):
+    def setConfig(self, conf_file, training_data_fname=None, **kwargs):
         if conf_file is None:
             conf_file = os.path.dirname(__file__) + "/config/training_config.yml"
             self.config = rt.read_conf(conf_file=conf_file)
         else:
             self.config = conf_file
         
-        if inWarpper is not None:
-            self.config["training_data_path"] = inWarpper
+        if training_data_fname is not None:
+            self.config["training_data_fname"] = training_data_fname
 
         # setting kwargs
         for key, value in kwargs.items():
@@ -285,3 +320,23 @@ class dataTrain:
             print(f"{key}: {val}")
 
         #return fmt.inpQuit()
+
+    def plotLoss(self, train_loss, val_loss, save_figure=False):
+        # Plotting the training and validation loss:
+        # fig, ax = plt.subplots()
+        print(' toto plotting ')
+        plt.clf()
+        plt.plot(train_loss, label='Training loss')
+        plt.plot(val_loss, label='Validation loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.ylim(0, train_loss[0]*1.5)
+        # plt.set_xlabel('Epoch')
+        # plt.set_ylabel('Loss')
+        # plt.set_ylim(0, train_loss[0]*1.5)
+        plt.legend()
+        if save_figure:
+            plt.savefig(self.config["model_dir"] + '/loss.png')
+        # plt.show()
+        plt.draw()
+        plt.pause(0.01)

@@ -12,7 +12,7 @@ conf = dict(
     # number of pixels of the pupil
     npupil=256,
     # size of the detector plane array [lam/D]
-    det_size=15,
+    det_size=5,
 
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
@@ -26,12 +26,12 @@ conf = dict(
     #    'CVC'  for Classical Vortex Coronagraph
     #    'RAVC' for Ring Apodized Vortex Coronagraph
     #    WIP : 3. mode = 'APP'  for Apodizing Phase Plate
-    inst_mode='IMG',
+    inst_mode='CVC',
     # Vortex topological charge ('CVC' and 'RAVC')
     vc_charge=2,                      # (CVC and RAVC only) vortex topological charge
     # Vector or scalar vortex ('CVC' and 'RAVC')
     # TODO support vector vortex mode
-    vc_vector=False,
+    vc_vector=True,
 
     # Filename for the entrance (aperture) pupil
     f_aperture=_tmp_dir + 'pupil/ELT_fullM1.fits',
@@ -74,9 +74,9 @@ conf = dict(
     band='METIS_N2',
 
     # star magnitude at selected band
-    mag=0,
+    mag=-1.5,
     # Polychromatic bandwidth
-    bandwidth=0.2,
+    bandwidth=0.0,
     # science detector integration time [s]
     dit=0.1,
 
@@ -90,21 +90,44 @@ conf = dict(
     ao_frame_decimation=10,
 
     # ========
-    # Deep Learning Sensor
-    #   the DL sensor follows a specific workflow with data generation - training - inference
-    #   which calls for specific configuration files.
+    # Generic FP Sensor parameters
+    # ========
+    # Number of modes sensed and corrected.
+    nb_modes = 20,      # (generic `psi_nb_modes`
+    # Number of iteration. Total duration is nb_iter / framerate
+    nb_iter = 600,      # (generic `nb_iter`
+     # [Hz] framerate of the sensing & correction
+    framerate = 10,     # (generic `psi_framerate`
+
+    # Control gains
+    gain_I=0.45, #0.2 for IMG # Integrator gain
+    gain_P=0.45, #0.1 for IMG # Proportional gain
+
+    # Saving results
+    save_loop_statistics=False,
+    save_phase_screens=False,
+    save_basedir='/home/gorban/', #'/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    save_dirname=None,
+
+    # ========
+    #  ASYMMETRIC STOP: DL and Kernel
+    #   asymmetric pupil stop if inst_mode == IMG
+    #   asymmetric Lyot stop if inst_mode == CVC or RAVC
+    #   * Deep Learning Sensor *
+    #       the DL sensor follows a specific workflow with data generation - training - inference
+    #       which calls for specific configuration files.
+    #   * Kernel algorithm *
+    #       specific parameter for the discretization of the pupil plane
+    #       Only works with inst_mode == IMG
     # ========
     f_generator = _dir_ml + '/config/' + 'generator_config.yml',
     f_inference = _dir_ml + '/config/' + 'inference_config.yml',  
     f_training  = _dir_ml + '/config/' + 'training_config.yml',
 
-    # =========
-    #  Kernel algorithm
-    # =========
     asym_stop=True,
     asym_angle=180,                   # [optional]
-    asym_width=0.1,                  # [optional]
-    asym_mask_option='two_spiders',
+    asym_width=0.15,                  # [optional]
+    asym_mask_option= 'two_lyot', #'two_spiders',
     asym_model_fname=None, #toto.fits.gz',              # [optional]
     # TODO remove this variable, by setting automatically tel_daim in ConfigParser
     asym_telDiam=40,
@@ -113,16 +136,8 @@ conf = dict(
     # transmission min
     asym_tmin=0.5,
 
-    # asym_stop = False,
-    # asym_angle = 0,                   # [optional]
-    # asym_width = 0.15,                  # [optional]
-    # asym_model_fname = None, #toto.fits.gz',              # [optional]
-    # # asym_telDiam = 40,
-    # asym_nsteps=33, # nb of steps along the pupil diameter
-    # asym_tmin=0.5, # transmission min
-
     # =========
-    #  PSI
+    #  Phase Sorting Interferometry
     # =========
     # [Hz] framerate of the psi correction
     psi_framerate=10,
@@ -147,16 +162,13 @@ conf = dict(
     # Focal plane filtering sigma (Gaussian blurring)
     #   and radius [lambda / D]
     psi_filt_sigma=0.05,
-    psi_filt_radius=15,
+    psi_filt_radius=5,
 
     # PSI scaling if do not want to use 'auto scaling'
     #   default is None, otherwise expected NCPA in [nm]
     ncpa_expected_rms=None,     # 100, # 50, #250,        
 
-    # Control gain
-    gain_I=0.45, #0.2 for IMG
-    gain_P=0.45, #0.1 for IMG
-
+    check_psi_convergence=False,
     # ============
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)
@@ -178,7 +190,6 @@ conf = dict(
     turb_prefix_wf='Reconstructed_wavefront_',    # NB: assumes units are in µm
     turb_suffix='ms_256.fits',
 
-
     # =============
     #   Water vapour seeing
     # Include water vapour seeing (bool)
@@ -198,14 +209,9 @@ conf = dict(
     # Scale factor, if want to change the level of WV
     wv_scaling=1,
 
-    # =============
-    # Saving results
-    save_loop_statistics=True,
-    save_phase_screens=False,
-    save_basedir='/Users/orban/Projects/METIS/4.PSI/psi_results/',
-    save_dirname=None,
 
-    check_psi_convergence=False,
+
+
 
 )
     # sort alphabetically

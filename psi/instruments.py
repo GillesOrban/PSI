@@ -44,6 +44,7 @@ class GenericInstrument():
                                                 focal_length=diam)
 
 
+        self.phase_residual = hcipy.Field(0.0, self.pupilGrid)      # knowledge only in Simulation
         self.phase_ncpa = hcipy.Field(0.0, self.pupilGrid)         # knowledge only in Simulation
         self.phase_wv = hcipy.Field(0.0, self.pupilGrid)           # knowledge only in Simulation
         self.phase_wv_integrated = hcipy.Field(0.0, self.pupilGrid)    # knowledge only in Simulation
@@ -175,7 +176,11 @@ class CompassSimInstrument(GenericInstrument):
                                                   rot90=True,
                                                   binary=True)(self.pupilGrid)
         if  self._asym_stop and self._inst_mode == 'IMG':
+            full_transmission = np.sum(self.aperture)
             self.aperture *= self._asym_mask(self.pupilGrid)
+            new_transmission = np.sum(self.aperture)
+            self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.format(100 - new_transmission / full_transmission *100))
+
 
         # self.aperture = np.rot90(self.aperture)
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
@@ -186,6 +191,13 @@ class CompassSimInstrument(GenericInstrument):
                                                             npupil=self._size_pupil_grid,
                                                             rot90=True)(self.pupilGrid)
             # self.lyot_stop_mask = np.rot90(self.lyot_stop_mask)
+            if self._asym_stop:
+                full_transmission = np.sum(self.lyot_stop_mask)
+                self.lyot_stop_mask *= self._asym_mask(self.pupilGrid)
+                new_transmission = np.sum(self.lyot_stop_mask)
+                self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.format(100 - new_transmission / full_transmission *100))
+
+
         if self._inst_mode == 'RAVC' : #or self._inst_mode == 'APP':
             self.pupil_apodizer = psi_utils.make_COMPASS_aperture(conf.f_apodizer,
                                                             npupil=self._size_pupil_grid,
@@ -208,7 +220,7 @@ class CompassSimInstrument(GenericInstrument):
 
         # by default include residual turbulence phase screens
         self.include_residual_turbulence = True
-        self.phase_residual = 0
+        # self.phase_residual = 0
         # self.phase_residual = hcipy.Field(0.0, self.pupilGrid).shaped
 
         self.ncpa_dynamic = conf.ncpa_dynamic

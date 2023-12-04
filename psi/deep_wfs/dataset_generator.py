@@ -4,40 +4,44 @@ import h5py
 from tqdm import tqdm
 import psi.deep_wfs.utils.read_data  as rt
 from psi.helperFunctions import LazyLogger
-
+import psi.psi_utils as psi_utils
+import astropy.io.fits as fits
 
 # config_file='config/config_deep_learning.py'
 # deep_sensor = DeepSensor(config_file)
 # deep_sensor.setup()
-
-# config={'zernike_unit': 'rad',
-#         'defocus': 0,
-#         'zernike_seed': 0,
-#         'wavelength': 1,
-#         'channels': 1,
-#         'nb_modes': 0,
-#         'nb_samples': 0}
 
 
 class dataGen():
 
     def __init__(self, logger=LazyLogger('deep_gen')):
         self.logger = logger
+        self.scaling_ps = 1
 
+    def setup(self,  inst, C2M, sensor_params=None, conf_file=None):
 
-    def setup(self, inst, C2M, conf_file=None):
-        config={'zernike_unit': 'rad',
-            'defocus': 0,
-            'zernike_seed': 0,
-            'wavelength': 1,
-            'channels': 1,
-            'nb_modes': 0,
-            'nb_samples': 10}
         
-        self.setConfig(conf_file, extra_config=config)
-        #self.config = config
         self._inst = inst  
         self._C2M = C2M
+
+        extra={'zernike_unit': 'rad',
+               'defocus': 0,
+               'wavelength': self._inst.wavelength * 1e9,   # nm
+               'nb_modes': self._C2M.shape[0],
+               'channels': 1,
+               'config_simulation' : False}
+        if sensor_params is not None:
+            # adding the sensor/simulation configuration as a dictionary
+            sensor_config = vars(sensor_params).copy()
+            extra['config_simulation'] = True
+            for key in extra.keys():
+                if key in sensor_config.keys():
+                    self.logger.warn('Key {0} already in config'.format(key))
+                    sensor_config.pop(key)
+            extra = {**extra, **sensor_config}
+
+        self.setConfig(conf_file, extra_config=extra)
+
 
     def setConfig(self, conf_file=None, extra_config=None):
         if conf_file is None:
@@ -48,9 +52,20 @@ class dataGen():
 
         if extra_config is not None:
             for key, value in extra_config.items():
-                self.config[key] = value
+                if (type(extra_config[key]) in [int, str, float, bool]):
+                    self.config[key] = value
 
-    def genData(self, tag_name, store_data=True):
+    def genData(self, tag_name, store_data=True, phase_fname=''):
+        self._inst.include_residual_turbulence = False
+        self._inst.include_water_vapour = False
+        self._inst.ncpa_dynamic = False
+        self._inst.phase_wv *= 0
+        self._inst.phase_ncpa *= 0
+        
+
+        self.phase_cube = fits.getdata(phase_fname)
+
+
         self.config['nb_modes'] = self._C2M.shape[0]
 
         nmodes = self.config['nb_modes']
@@ -60,17 +75,26 @@ class dataGen():
         psfs = np.zeros((nentries, dim, dim))
 
         for i in tqdm(range(nentries)):
-            # Grab new images
+            # # Grab new images
+            # nbOfSeconds = 0.1  # 0.1 seconds is the shortest possible with CompassSim
+            # # TODO replace grab by my propagator with random phase screen for higher efficiency
+            # science_images_buffer = self._inst.grabScienceImages(nbOfSeconds)
+
+            # science_image = science_images_buffer.mean(0)
+            # # crop PSFs ?
+
+            # # Phase screens
+            # phase_screen = np.copy(self._inst.phase_wv_integrated)
+            phase_screen = self._get_phase_screen(i)
+            self._inst.phase_ncpa = phase_screen
             nbOfSeconds = 0.1  # 0.1 seconds is the shortest possible with CompassSim
-            # TODO replace grab by my propagator with random phase screen for higher efficiency
             science_images_buffer = self._inst.grabScienceImages(nbOfSeconds)
-
             science_image = science_images_buffer.mean(0)
-            # crop PSFs ?
 
-            # Phase screens
-            phase_screen = np.copy(self._inst.phase_wv_integrated)
-            modes = self._C2M.dot(phase_screen) # in rad rms ?
+            # print('toto:')
+            # print(self._inst.include_water_vapour)
+            
+            modes = self._C2M.dot(phase_screen) * self.config['wavelength']/ (2 * np.pi)  # nm
 
             psfs[i] = science_image
             zernike_coeff[i] = modes
@@ -105,46 +129,11 @@ class dataGen():
                 # hdf.attrs['aperture'] = aperture
                 hdf.attrs.update(self.config)
     
-    # def _save_to_file()
-
-# # Save to hdf5 file
-# filename='./toto.h5'
-# aperture = inst.aperture.shaped
-
-# # attrs = config
-# config['nb_modes'] = nmodes
-# config['nb_samples'] = nentries
-
-# with h5py.File(filename, mode="w") as hdf:
-#     # Save the Zernike coefficients:
-#     hdf.create_dataset("zernike_coefficients", data=zernike_coeff)
-#     # Save the PSFs:
-#     hdf.create_dataset("psfs_1", data=psfs,
-#                         compression="gzip", compression_opts=4)
-#     # Add attributes:
-#     hdf.attrs["0"] = 0
-#     hdf["zernike_coefficients"].attrs['unit'] = config["zernike_unit"]
-#     hdf["psfs_1"].attrs['defocus'] = config["defocus"]  # in nm
-#     # hdf.attrs['seed'] = config["zernike_seed"]
-#     # hdf.attrs['nb_samples'] = zernike_coeff.shape[0]
-#     hdf.attrs['aperture'] = aperture
-#     hdf.attrs.update(config)
-
-# def read_data(filename, dataset_size):
-#     """
-#     TODO use readTools  instead
-
-#     Example showing how the hdf5 datasets can be read.
-#     """
-#     with h5py.File(filename, 'r') as hf:
-#         # Putting the dataset as tensors into a dictionary:
-#         zern_coeffs = np.array(hf['zernike_coefficients'][:dataset_size])
-#         psfs_in = np.array(hf["psfs_1"][ :dataset_size, :, :])
-#         # psfs_out = np.array(hf["psfs"][1, :dataset_size, :, :])
-
-#         # db = {}
-#         # for key in hf.keys():
-#         #     db[key] = hf[key][:]
-#         attrs = dict(hf.attrs.items())
-
-#     return attrs, zern_coeffs, psfs_in#, psfs_out
+    def _get_phase_screen(self, idx):
+        size_pupil_grid = int(self._inst.pupilGrid.shape[0])
+        phase_screen  = self._inst.conv2rad_wv * \
+            psi_utils.process_screen(self.phase_cube[idx],
+                                size_pupil_grid,
+                                self._inst.aperture, rotate=True)
+        phase_screen *= self.scaling_ps
+        return phase_screen

@@ -46,6 +46,21 @@ def mask_asym_two(width, angle=180,
 
     return func
 
+def mask_asym_two_lyot(width):
+    '''
+        custom for Lyot after CVC
+    '''
+
+    def func(grid):
+        rad = 0.325
+        angle = np.deg2rad(60)
+        pos1 = (-rad, 0)
+        pos2 = (-np.cos(angle) * rad, -np.sin(angle) * rad)
+        spider1 = hcipy.make_spider((0,0), pos1, width)
+        spider2 = hcipy.make_spider((0,0), pos2, width)
+        return spider1(grid) * spider2(grid)
+
+    return func
 
 def make_vlt_aperture():
     pass

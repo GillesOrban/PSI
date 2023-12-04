@@ -86,7 +86,7 @@ class KernelSensor():
 
     def setup(self):
         '''
-            Setup the PSI wavefront sensor based on the configuration
+            Setup the wavefront sensor based on the configuration
         '''
         # Build instrument object 'inst'
         self.logger.info('Initialize the instrument object & building the optical model')
@@ -119,7 +119,7 @@ class KernelSensor():
 
         # Init logging buffer
         self._ncpa_correction_long_term = 0
-        self.iter = 0 # iteration index of PSI
+        self.iter = 0 # iteration index
         self._loop_stats = []
 
         # -- Plotting & saving results
@@ -369,7 +369,7 @@ class KernelSensor():
 
     def next(self, display=True, check=False, leak=1, integrator=True):
         # TODO replace psi_framerate by kernel_framerate
-        nbOfSeconds = 1/self.cfg.params.psi_framerate
+        nbOfSeconds = 1/self.cfg.params.framerate
         science_images_buffer = self.inst.grabScienceImages(nbOfSeconds)
 
         self.science_image = science_images_buffer.mean(0)
@@ -409,7 +409,9 @@ class KernelSensor():
         # plt.subplot(143)
         # imshow_norm(self._ncpa_estimate.reshape((256, 256)) * self.inst.aperture.shaped, interval=inter)
         ax3 = plt.subplot(143)
-        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((256, 256)) * self.inst.aperture.shaped,
+        _dim = self.inst.pupilGrid.shape[0]
+        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
+                           self.inst.aperture.shaped,
                            interval=inter, ax=ax3)
         # plt.subplot(144)
         ax4 = plt.subplot(144)
@@ -432,9 +434,8 @@ class KernelSensor():
         self._ims.append([im1, im2, im3, im4])
 
     def loop(self, **kwargs):
-        # TODO replace psi_nb_iter by an agnostic 'nb_iter'
         self._ims = []  # Matplotlib Artist list 
-        for i in range(self.cfg.params.psi_nb_iter):
+        for i in range(self.cfg.params.nb_iter):
             self.next(**kwargs)
             self.evaluateSensorEstimate()
             # if self.cfg.params.save_phase_screens:

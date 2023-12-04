@@ -1,8 +1,8 @@
 # defines what model is used for inference currently
 # will be used as a config for on-bench correction.
 
-model_dir: "./"  # path name of the model '.pth'.
+model_dir: "/mnt/disk12tb/METIS/PSI/models/CVC_Nband_asym_lyot_s1e3_Z20_m-1.5_vector/"  # path name of the model '.pth'.
 model_type: "resnet18"  # CNN name (choose between 'resnet18', 'resnet34', 'resnet50').
-filter: 'L2'
-nb_modes: 20 
+# filter: 'L2'
+# nb_modes: 20 
 

@@ -14,9 +14,10 @@ from torchvision import transforms
 import psi.deep_wfs.src.Transforms as custom_transforms
 import psi.deep_wfs.src.Resnet as resnet
 import psi.deep_wfs.utils.dataset_format_pytorch as datapp
-
 import psi.deep_wfs.utils.read_data as rt
 from psi.deep_wfs.utils.dataset_format_pytorch import normalization
+from psi.helperFunctions import LazyLogger
+
 # rt = readTools()
 
 
@@ -36,20 +37,25 @@ class dataInfer:
     This class provides the functionality to use a given ResNet model 
     and to perform a forward pass (prediction), via the method ``infer''
     '''
-    def __init__(self):
+    def __init__(self, logger=LazyLogger('deep_infer')):
         # TODO option to assign 2 GPUs (or more)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model=None
+        self.logger = logger
 
-    def setup(self, conf_file=None):
-        _config, _data_info = self.setConfig(conf_file)
-        self._config = _config
-        self._data_info = _data_info
-        if not 'nb_modes' in self._data_info:
-            print('Warning: data info incomplete, setting nb_modes from config')
-            self._data_info['nb_modes'] = self._config['nb_modes']
-            self._data_info['channels'] = 1
-            self._data_info['wavelength'] = 1
+    def setup(self, conf_file=None, model_data_path=None):
+        _config, _data_info = self.setConfig(conf_file,  model_data_path=model_data_path)
+        self.config = _config
+        self.data_info = _data_info
+        if not 'nb_modes' in self.data_info:
+            self.logger.warning('Warning: data info incomplete, setting nb_modes from config')
+            self.data_info['nb_modes'] = self.config['nb_modes']
+        if not 'channels' in self.data_info:
+            self.logger.warning('Warning: data info incomplete, setting channels from config')
+            self.data_info['channels'] = 1
+        if not 'wavelength' in self.data_info:
+            self.logger.warning('Warning: data info incomplete, setting wavelength from config')
+            self.data_info['wavelength'] = 1
 
     def infer(self, psfs, conf_file=None):
         '''
@@ -66,12 +72,12 @@ class dataInfer:
             2nd dim is the number of modes
         '''
         # _config, _data_info = self.setConfig(conf_file)
-        _data_info = self._data_info
-        _config = self._config
+        _data_info = self.data_info
+        _config = self.config
         _data_info['nb_samples'] = psfs.shape[0]
 
         if self.model is None:
-            print('Warning: Loading CNN model for the 1st time')
+            self.logger.info('Loading CNN model for the 1st time')
             self.model = self.load_model(_config, _data_info)
         
         # Inference
@@ -117,7 +123,7 @@ class dataInfer:
                 model = WrappedModel(model)
                 model.load_state_dict(state_dict)
         else:
-            print('Warning : no existing trained weights -- using the default ResNet')
+            self.logger.warning('No existing trained weights -- using the default ResNet')
 
         return model
     
@@ -129,27 +135,29 @@ class dataInfer:
         
     #     return dataset_norm
     
-    def setConfig(self, conf_file=None):
+    def setConfig(self, conf_file=None, model_data_path=None):
         if conf_file is None:
             conf_file = os.path.dirname(__file__) + "/config/inference_config.yml"
         else:
             #_config = conf_file
             pass
         _config = rt.read_conf(conf_file=conf_file)
+        if model_data_path is not None:
+            _config['model_dir'] = model_data_path
 
         # print(_config)
         # # if not os.path.isfile(_config["model_dir"] + "model.pth"):
         # if not os.path.isfile(_config["model_fname"] + "model.pth"):
         #     raise FileNotFoundError("Model not found in the specified directory: " + _config["model_dir"])
         
-        if os.path.isfile(_config["model_dir"] + "model.pth"):
+        if os.path.isfile(_config["model_dir"] + "/model.pth"):
             # read data_info.json
             with open(os.path.dirname(_config["model_dir"]) + \
                     "/data_info.json", "r") as f:
                 _data_info = json.load(f)
         else:
             #_data_info = None
-            print('Warning: no data info')
+            self.logger.warning('No data info')
             _data_info = {}
 
 

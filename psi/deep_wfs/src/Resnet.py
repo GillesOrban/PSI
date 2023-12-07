@@ -5,6 +5,7 @@ import torch.nn as nn
 from torchvision import models
 import psi.deep_wfs.utils.training_tools as utils
 from torchvision.models import resnet18, resnet34, resnet50, ResNet18_Weights, ResNet34_Weights, ResNet50_Weights
+import numpy as np
 
 class Net(nn.Module):
 
@@ -14,13 +15,13 @@ class Net(nn.Module):
         # Use pre-trained weights from ImageNet (overwritten if load state dict later):
         if resnet_archi == "resnet50":
             self.resnet = resnet50(weights = ResNet50_Weights.DEFAULT)
-            out_dim = 2048
+            # out_dim = 2048
         elif resnet_archi == "resnet34":
             self.resnet = resnet34(weights = ResNet34_Weights.DEFAULT)
-            out_dim = 512
+            # out_dim = 512
         elif resnet_archi == "resnet18":
             self.resnet = resnet18(weights = ResNet18_Weights.DEFAULT)
-            out_dim = 512
+            # out_dim = 512
         else:
             raise ValueError("The ResNet architecture specified is not valid (must be 'resnet18', 'resnet34' or 'resnet50')")
 
@@ -46,17 +47,16 @@ class Net(nn.Module):
         new_layer.weight = nn.Parameter(new_layer.weight)
         self.resnet.conv1 = new_layer
 
-        # *** Modify last layer (to account for the output dimension):
-        # self.resnet.fc = nn.Linear(out_dim, n_channels_out)
-        # Modify last layer (to account for the output dimension):
-        new_last_layer = [nn.Linear(out_dim, 250),
+        # --- Modify last layer (to account for the output dimension):
+        # add 3 fc layer for smoothing training, with log spaced number of features
+        in_features = self.resnet.fc.in_features
+        nb_features = np.array(np.geomspace(n_channels_out, in_features, 4), dtype='int')[::-1]
+        new_last_layer = [nn.Linear(nb_features[0], nb_features[1]),
                           nn.ReLU(),
-                          nn.Linear(250, 100),
-                          nn.ReLU()]
+                          nn.Linear(nb_features[1], nb_features[2]),
+                          nn.ReLU(),
+                          nn.Linear(nb_features[2], nb_features[3])]
         self.resnet.fc = nn.Sequential(*new_last_layer)
-
-        # Linear layer to map to modes
-        self.post_res = nn.Linear(100, n_channels_out)
 
         # Load weights from previous training (if requested):
         if weights_path is not False:
@@ -70,11 +70,11 @@ class Net(nn.Module):
                 state_dict = utils.set_state_dict(pretrained_weights, remove_str_size=14)  # remove also 'module.' of dataparallel
                 self.resnet.load_state_dict(state_dict)
 
-        # Allows to fine-tune all ResNet weights:
-        for param in self.resnet.parameters():
-            param.requires_grad = True
+        # # Allows to fine-tune all ResNet weights:
+        # for param in self.resnet.parameters():
+        #     param.requires_grad = True
 
     def forward(self, x):
         z = self.resnet(x)
-        z = self.post_res(z)
+        # z = self.post_res(z)
         return z

@@ -20,7 +20,7 @@ def reorthonormalize(modal_basis, aperture):
 
     return hcipy.ModeBasis(basis_orthonormalized, modal_basis.grid)
 
-def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
+def gendrinou_basis(pupil_grid, aperture, nActOnDiam, nbModes=None):
     '''
         Build a 'Gendrinou' basis (see email 14/10/2020). 
         Based on actuator inter-distance
@@ -33,7 +33,7 @@ def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
         pupil grid : hcipy CartesianGrid
         aperture   : hcipy field or 2D numpy array
         nActOnDiam  : number of actuators along the aperture diameter. 
-            Sets the number of modes in the basis (2 * pi * (nActOnDiam/2)**2)
+            Sets the number of modes in the basis (~ pi * (nActOnDiam/2)**2)
 
         Returns
         -------
@@ -50,6 +50,8 @@ def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
     xxf = xx[pupil_dm==1]
     yyf = yy[pupil_dm==1]
     nAct = int(np.sum(pupil_dm))
+    if nbModes is None:
+        nbModes = nAct
     A = np.zeros((nAct, nAct))
     # --- Gendrinou recipe ---
     for i in range(nAct):
@@ -93,10 +95,10 @@ def gendrinou_basis(pupil_grid, aperture, nActOnDiam):
         modeBasis[i] /= norm
         cmdBasis[i] /= norm
 
-    modeBasis_hcipy = hcipy.ModeBasis([modeBasis[i].flatten() for i in range(nAct)], pupil_grid)
+    modeBasis_hcipy = hcipy.ModeBasis([modeBasis[i].flatten() for i in range(nbModes)], pupil_grid)
     # optional: return cmdBasis)
 
-    return modeBasis, modeBasis_hcipy
+    return modeBasis[:nbModes], modeBasis_hcipy
 
 def fourier_modes_simple(pupil_grid, aperture, k = [1, 10], q=4):
     '''

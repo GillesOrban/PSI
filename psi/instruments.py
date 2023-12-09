@@ -877,7 +877,17 @@ class HcipySimInstrument(GenericInstrument):
         '''
         self.diam = conf.tel_diam
         if conf.pupil == 'ELT':
-            self.aperture = hcipy.aperture.make_elt_aperture(normalized=False)(self.pupilGrid)
+            if hasattr(conf, 'f_aperture'):
+                    self.logger.info('Using ELT saved COMPASS aperture')
+                    self.aperture = psi_utils.make_COMPASS_aperture(conf.f_aperture,
+                                                  npupil=self._size_pupil_grid,
+                                                  rot90=True,
+                                                  binary=True)(self.pupilGrid)
+            else:
+                self.logger.info('Using ELT HCIPy aperture')
+                self.aperture = hcipy.aperture.make_elt_aperture(normalized=False)(self.pupilGrid)
+                self.aperture = np.rot90(self.aperture.shaped).flatten()
+
         elif conf.pupil == 'ERIS':
             self.aperture = hcipy.aperture.make_vlt_aperture(normalized=False,
                                                              telescope='ut4',
@@ -904,7 +914,13 @@ class HcipySimInstrument(GenericInstrument):
             self._asym_mask = conf.asym_mask
 
         if  self._asym_stop and self._inst_mode == 'IMG':
-            self.aperture *= self._asym_mask(self.pupilGrid)
+            full_transmission = np.sum(self.aperture)
+            tmpGrid = self.pupilGrid.copy().scale(1/self.diam)
+            self.aperture *= self._asym_mask(tmpGrid)
+            new_transmission = np.sum(self.aperture)
+            self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.\
+                             format(100 - new_transmission / full_transmission *100))
+
 
         if self._inst_mode == 'CVC' or self._inst_mode == 'RAVC':
             self.logger.warning('CVC / RAVC not implemented')
@@ -915,6 +931,14 @@ class HcipySimInstrument(GenericInstrument):
             #                                                 npupil=self._size_pupil_grid,
             #                                                 rot90=True)(self.pupilGrid)
             # self.lyot_stop_mask = np.rot90(self.lyot_stop_mask)
+                        # self.lyot_stop_mask = np.rot90(self.lyot_stop_mask)
+            # if self._asym_stop:
+            #     full_transmission = np.sum(self.lyot_stop_mask)
+            #     self.lyot_stop_mask *= self._asym_mask(self.pupilGrid)
+            #     new_transmission = np.sum(self.lyot_stop_mask)
+            #     self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.\
+            #                      format(100 - new_transmission / full_transmission *100))
+
         if self._inst_mode == 'RAVC' : #or self._inst_mode == 'APP':
             self.logger.warning('CVC / RAVC not implemented')
             # self.pupil_apodizer = psi_utils.make_COMPASS_aperture(conf.f_apodizer,
@@ -954,7 +978,7 @@ class HcipySimInstrument(GenericInstrument):
     def _setup_modal_basis(self):
         pupil_grid = self.pupilGrid
         #if self._inst_mode == 'ELT':
-        if self.tel_diam > 20:
+        if self.diam > 20:
             self._nmodes = 1500
         else:
             self._nmodes = 500

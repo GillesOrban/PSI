@@ -98,7 +98,8 @@ class KernelSensor():
         if hasattr(self.cfg.params, 'tel_diam'):
             self._Dtel = self.cfg.params.tel_diam
         else:
-            self._Dtel = self.cfg.params.asym_telDiam
+            self.logger.warning('Telescope diameter not given in config. Setting to 1')
+            self._Dtel = 1 #self.cfg.params.asym_telDiam
         self._pscale = (self.cfg.params.wavelength / self._Dtel) * 206264.8 / self.cfg.params.det_res * 1e3 # [mas / px]
 
         #pscale = 4.91168055, #5.32359, #5.47,                      # pixel scale in mas/pix
@@ -310,33 +311,62 @@ class KernelSensor():
     #                     (xnew, ynew),
     #                     method='linear')
 
-    def _initModalBases(self, nbOfModes=100):
+    def _initModalBases(self, nbOfModes=100, nmode_shift=3):
         '''
         FIXME re-orthonormalization leads to NaNs for the small aperture
             (because odd grid ??)
             check the basis -> impact of diam=1
+
+        PARAMETERS
+            nmode_shift  :    int
+                by default skip the first 3 modes, ie piston, tip and tilt
         '''
         diam = 1
         radial_cutoff = False
-        nmode_shift = 3 
+
+        #-- For kernel discretized pupil
         self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps)
-        #self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps - 1)
-        self.M2C_small = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
-                                                   self.smallGrid,
-                                                  1,
-                                                  radial_cutoff=radial_cutoff)
+
+        if self.cfg.params.modal_basis == 'zern':
+            # nmode_shift = 3 # 3 means, will skip piston, tip, tilt
+            self.M2C_small = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
+                                                    self.smallGrid,
+                                                    1,
+                                                    radial_cutoff=radial_cutoff)
+        elif self.cfg.params.modal_basis=='gendrinou':
+            nmode_shift = nmode_shift - 1  # (no piston in this basis)
+            nAct = int(np.ceil(np.sqrt(nbOfModes * 2.5)))
+            _, self.M2C_small = psi_utils.gendrinou_basis(self.smallGrid,
+                                                          self._small_aperture,
+                                                          nAct, nbOfModes+nmode_shift)
+        else:
+            self.logger.error("{0} is not supported".format(self.cfg.params.modal_basis))
+
         mask = self._small_aperture.flatten()
         # mask[mask!=0] =1
         self.M2C_small = psi_utils.reorthonormalize(self.M2C_small,
                                                     mask)
         self.M2C_matrix_small = self.M2C_small.transformation_matrix[:, nmode_shift:]
-        # TM = self.M2C_small.transformation_matrix.copy()
+        # if any(np.isnan(self.M2C_matrix_large)):
+        #     self.logger.warning('NaN in M2C small matrix, setting to 0s')
+        #     self.M2C_matrix_small[np.isnan(self.M2C_matrix_large)] = 0  
+
         self.C2M_small = hcipy.inverse_tikhonov(self.M2C_small.transformation_matrix,
                                                 1e-3)[nmode_shift:,:]
 
-        self.M2C_large = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
+        #-- For instrument pupil
+        if self.cfg.params.modal_basis == 'zern':
+            self.M2C_large = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
                                                   self.inst.pupilGrid, 1,
                                                   radial_cutoff=radial_cutoff)
+        elif self.cfg.params.modal_basis=='gendrinou':
+            # nmode_shift = 2 # 2 means, will skip tip, tilt (no piston in the basis)
+            nAct = int(np.ceil(np.sqrt(nbOfModes * 2.5)))
+            _, self.M2C_large = psi_utils.gendrinou_basis(self.inst.pupilGrid,
+                                                          self.inst.aperture,
+                                                          nAct, nbOfModes+nmode_shift)
+        else:
+            self.logger.error("{0} is not supported".format(self.cfg.params.modal_basis))
         # binary_aperture = np.copy(self.inst.aperture)
         # binary_aperture[self.inst.aperture >=0.5] = 1
         # binary_aperture[self.inst.aperture < 0.5] = 0

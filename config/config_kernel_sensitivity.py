@@ -14,78 +14,112 @@ from types import SimpleNamespace
 _tmp_dir = 'data/'
 
 conf = dict(
+    # number of pixels of the pupil
+    npupil = 256 , 
+    # [lam/D] radial size of the detector plane array                      
+    det_size = 15 ,                   
 
-    npupil = 256, #285,                        # number of pixels of the pupil
-    det_size = 15, #14.875,                      # [lam/D] radial size of the detector plane array
 
-    # det_res should be None by default and computed based on the band_specs provdied below
-    # this in order to have the correct sampling wrt to the background noise.
-    det_res = 4,                       # [px/ (lbda/D)] number of pixels per resolution element
-                                        #~4 px in L-band; 9.3 in N-band
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
-    instrument = 'HcipySimInstrument',
-    pupil = 'CIRC',   # 'ERIS' or 'ELT', or 'CIRC'
+    instrument = 'HcipySimInstrument', #'HcipySimInstrument',
+    # [HcipySimInstrument] only - Pupil type:'ERIS' or 'ELT', or 'CIRC'
+    # NB: for ELT, if f_aperture is given, will use it, otherwise use HCIPy to define the ELT aperture
+    pupil = 'ELT',  
 
     # =======
     #   Observing Modes
     # =======
-    #    0. mode = 'ELT'  for no coronagraph (only telescope)
-    #    1. mode = 'CVC'  for Classical Vortex Coronagraph
-    #    (2. mode = 'RAVC' for Ring Apodized Vortex Coronagraph)
-    #    (3. mode = 'APP'  for Apodizing Phase Plate)
-    # TODO replace mode name as follows:
-    #   ELT -> IMG_LM or IMG_N
-    #   CVC -> CVC_LM or CVC_N
-    #   RAVC -> RAVC_LM
-    inst_mode = 'ELT',                  # HCI instrument mode
-    vc_charge = 2,                      # (CVC and RAVC only) vortex topological charge
-    vc_vector = False,                  # (CVC and RAVC only) simulate a vector vortex instead of a scalar one
+    # Instrument mode
+    #    'IMG'  for no coronagraph (only telescope)
+    #    'CVC'  for Classical Vortex Coronagraph
+    #    'RAVC' for Ring Apodized Vortex Coronagraph
+    #    WIP : 3. mode = 'APP'  for Apodizing Phase Plate
+    inst_mode = 'IMG',                  
+    # Vortex topological charge ('CVC' and 'RAVC')
+    vc_charge = 2,              
+    # Vector or scalar vortex ('CVC' and 'RAVC')       
+    vc_vector = False,     
+
+    # Filename for the entrance (aperture) pupil            
+    f_aperture=_tmp_dir + 'pupil/ELT_fullM1.fits',
 
 
     # ======
     #    Photometry
     # ======
-    noise = 0  ,                        # 0: no noise, 1: photon noise only, 2: photon noise + background noise
-    mag = 0,                            # star magnitude at selected band
+    # Adding noise:
+    #   0: no noise, 
+    #   1: photon noise only, 
+    #   2: photon noise + background noise
+    noise = 0  ,                       
 
-    # --- the 3 following parameters should be replaced by the 'band_specs provided below'
-    ## L-filter
-    wavelength = 3.81e-6,               # [m] wavelength
-    flux_zpt = 8.999e+10,               # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
-    flux_bckg = 8.878e+4,               # [e-/s/pix]
+    # Wavelength band -- defined in photometry_definition.py
+    #   Baseline for METIS: 'METIS_L' and 'METIS_N2'
+    #   Alternatively if 'band' is not define, the following parameter should be passed
+    #   'wavelength', 'flux_zpt', 'flux_bckg'
+    band='METIS_N2',
 
-    ## N2-filter
-    # wavelength = 11.33e-6, #3.81e-6   ,         # [m] wavelength
-    # flux_zpt = 3.695e10, #8.999e+10,            # [e-/s] zeropoint HCI-L long, mag 0 (Jan 21, 2020)
-    # flux_bckg = 1.122e8, #8.878e+4,             # [e-/s/pix]
-
-    bandwidth = 0.2,                            # bandwidth for polychromatic simulations, 0 for monochromatic
-    dit = 0.1,                          # [s] science detector integration time
-
+    # star magnitude at selected band
+    mag=-1.5,
+    # Polychromatic bandwidth
+    bandwidth=0.0,
+    # science detector integration time [s]
+    dit=0.1,
 
     # ======
     #  AO parameters
     # ======
-    ao_framerate = 1000 ,        # [Hz] framerate of the AO loop
-    ao_frame_decimation = 10,    # Decimation of the WFS telemetry use by PSI, e.g. if =10, we use 1 every 10 WF frame
+    # framerate of the AO loop [Hz]
+    ao_framerate = 1000 ,       
+    # Decimation of the WFS telemetry use by PSI, 
+    #   e.g. if =10, we use 1 every 10 WF frame
+    ao_frame_decimation = 10,    
+
+    # ========
+    # Generic FP Sensor parameters
+    # ========
+    # Number of modes sensed and corrected.
+    nb_modes = 100,      # (generic `psi_nb_modes`
+    # Number of iteration. Total duration is nb_iter / framerate
+    nb_iter = 600,      # (generic `nb_iter`
+     # [Hz] framerate of the sensing & correction
+    framerate = 10,     # (generic `psi_framerate`
+
+    # modal basis: zern, dh, gendrinou
+    modal_basis = 'gendrinou',
+
+    # Control gains
+    gain_I=0.45, #0.2 for IMG # Integrator gain
+    gain_P=0.45, #0.1 for IMG # Proportional gain
+
+    # Saving results
+    save_loop_statistics=False,
+    save_phase_screens=False,
+    save_basedir='/home/gorban/', #'/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    save_dirname=None,  # TODO: explain difference with save_basedir
+
 
     # =========
     #  Kernel
     # =========
-    asym_stop = True,
-    asym_angle = 90,                   # [optional]
-    asym_width = 0.05,                  # [optional]
-    asym_model_fname = None, #toto.fits.gz',              # [optional]
-    # asym_telDiam = 40,
-    asym_nsteps= 33, #33, # nb of steps along the pupil diameter
-    asym_tmin=0.5, # transmission min
+    asym_stop=True,
+    asym_angle=180,                   # [optional]
+    asym_width=0.15,                  # [optional]
+    # Asymmetric mask configuration. 
+    # Currently implemented: 'one_spider', 'two_spiders', 'two_lyot'
+    asym_mask_option= 'two_spiders',
+    asym_model_fname=None,            # [optional]
+    # nb of steps along the pupil diameter
+    asym_nsteps=33,
+    # transmission min
+    asym_tmin=0.5,
 
     # # =========
     # #  PSI
     # # =========
     # TODO make 'framerate' sensor agnostics -> renaming
-    psi_framerate = 10,           # [Hz] framerate of the psi correction
+    # psi_framerate = 10,           # [Hz] framerate of the psi correction
     # psi_nb_iter = 60,            # number of iterations.
 
     # # How is the PSI estimate process before correction:
@@ -107,6 +141,8 @@ conf = dict(
     # # PSI scaling --- because of unknown scaling factor of NCPA
     # ncpa_expected_rms = 80, #250,        # expected NCPA in [nm]
 
+    # check_psi_convergence = False,
+
     # ============
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)
@@ -123,13 +159,7 @@ conf = dict(
     # nmodes = 500,
     ##...
 
-    # =============
-    # Saving results
-    save_loop_statistics = True,
-    save_phase_screens = False,
-    save_basedir = '/Users/orban/Projects/METIS/4.PSI/psi_results/',
 
-    check_psi_convergence = False,
 
 )
     # sort alphabetically

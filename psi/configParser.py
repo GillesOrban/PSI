@@ -196,6 +196,8 @@ class Parameters(object):
                 self.params.tel_diam = 8
             else:
                 raise ConfigurationError('Pupil does not exist')
+        elif self.params.instrument == 'CompassSimInstrument':
+            self.params.tel_diam = 40
 
 
     def compute_parameters(self):
@@ -219,8 +221,8 @@ class Parameters(object):
         self.params.num_photons_bkg = self.params.dit * self.params.flux_bckg
 
         if self.params.asym_stop is True:
-            if self.params.instrument == 'HcipySimInstrument':
-                self.params.asym_width *= self.params.tel_diam
+            # if self.params.instrument == 'HcipySimInstrument':
+            #     self.params.asym_width *= self.params.tel_diam
             if hasattr(self.params, 'asym_mask_option') is False:
                 self.params.asym_mask = mask_asym_baseline(self.params.asym_width,
                                                            self.params.asym_angle)

@@ -30,7 +30,7 @@ conf = dict(
     # Vortex topological charge ('CVC' and 'RAVC')
     vc_charge=2,                      # (CVC and RAVC only) vortex topological charge
     # Vector or scalar vortex ('CVC' and 'RAVC')
-    # TODO support vector vortex mode
+    # TODO [PSI] implement full support for vector vortex mode
     vc_vector=True,
 
     # Filename for the entrance (aperture) pupil
@@ -107,7 +107,7 @@ conf = dict(
     save_loop_statistics=False,
     save_phase_screens=False,
     save_basedir='/home/gorban/', #'/Users/orban/Projects/METIS/4.PSI/psi_results/',
-    save_dirname=None,
+    save_dirname=None,  # TODO: explain difference with save_basedir
 
     # ========
     #  ASYMMETRIC STOP: DL and Kernel
@@ -129,8 +129,7 @@ conf = dict(
     asym_width=0.15,                  # [optional]
     asym_mask_option= 'two_lyot', #'two_spiders',
     asym_model_fname=None, #toto.fits.gz',              # [optional]
-    # TODO remove this variable, by setting automatically tel_daim in ConfigParser
-    asym_telDiam=40,
+
     # nb of steps along the pupil diameter
     asym_nsteps=33,
     # transmission min

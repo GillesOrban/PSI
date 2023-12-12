@@ -74,7 +74,7 @@ conf = dict(
     band='METIS_N2',
 
     # star magnitude at selected band
-    mag=-1.5,
+    mag=0,
     # Polychromatic bandwidth
     bandwidth=0.0,
     # science detector integration time [s]
@@ -93,11 +93,14 @@ conf = dict(
     # Generic FP Sensor parameters
     # ========
     # Number of modes sensed and corrected.
-    nb_modes = 20,      # (generic `psi_nb_modes`
+    nb_modes = 20,      # (generic `psi_nb_modes`)
     # Number of iteration. Total duration is nb_iter / framerate
-    nb_iter = 600,      # (generic `nb_iter`
+    nb_iter = 600,      # (generic `nb_iter`)
      # [Hz] framerate of the sensing & correction
-    framerate = 10,     # (generic `psi_framerate`
+    framerate = 10,     # (generic `psi_framerate`)
+
+    # modal basis: zern, dh, gendrinou
+    modal_basis = 'zern',
 
     # Control gains
     gain_I=0.45, #0.2 for IMG # Integrator gain
@@ -138,36 +141,36 @@ conf = dict(
     # =========
     #  Phase Sorting Interferometry
     # =========
-    # [Hz] framerate of the psi correction
-    psi_framerate=10,
-    # number of iterations.
-    psi_nb_iter=600,
+    # # [Hz] framerate of the psi correction
+    # psi_framerate=10,
+    # # number of iterations.
+    # psi_nb_iter=600,
 
-    # How is the PSI estimate process before correction:
-    #   'all'     : no projection or filtering
-    #   'zern'    : projection on theoretical Zernike mode (circ ap.) and modal control
-    #   'dh'    : disk harmonics
-    # TODO include support to the Gendrinou basis
-    psi_correction_mode='zern',
-    # number of modes (if not 'all')
-    psi_nb_modes=100,
-    # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
-    psi_start_mode_idx=4,
+    # # How is the PSI estimate process before correction:
+    # #   'all'     : no projection or filtering
+    # #   'zern'    : projection on theoretical Zernike mode (circ ap.) and modal control
+    # #   'dh'    : disk harmonics
+    # # TODO include support to the Gendrinou basis
+    # psi_correction_mode='zern',
+    # # number of modes (if not 'all')
+    # psi_nb_modes=100,
+    # # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
+    # psi_start_mode_idx=4,
 
-    # [nm rms] value above which the psi_correction will be skipped.
-    #   set to None if no skip limit
-    psi_skip_limit=None,
+    # # [nm rms] value above which the psi_correction will be skipped.
+    # #   set to None if no skip limit
+    # psi_skip_limit=None,
 
-    # Focal plane filtering sigma (Gaussian blurring)
-    #   and radius [lambda / D]
-    psi_filt_sigma=0.05,
-    psi_filt_radius=5,
+    # # Focal plane filtering sigma (Gaussian blurring)
+    # #   and radius [lambda / D]
+    # psi_filt_sigma=0.05,
+    # psi_filt_radius=5,
 
-    # PSI scaling if do not want to use 'auto scaling'
-    #   default is None, otherwise expected NCPA in [nm]
-    ncpa_expected_rms=None,     # 100, # 50, #250,        
+    # # PSI scaling if do not want to use 'auto scaling'
+    # #   default is None, otherwise expected NCPA in [nm]
+    # ncpa_expected_rms=None,     # 100, # 50, #250,        
 
-    check_psi_convergence=False,
+    # check_psi_convergence=False,
     # ============
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)

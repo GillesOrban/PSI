@@ -87,16 +87,39 @@ conf = dict(
     #   e.g. if =10, we use 1 every 10 WF frame
     ao_frame_decimation=10,
 
+    # ========
+    # Generic FP Sensor parameters
+    # ========
+    # Number of modes sensed and corrected.
+    nb_modes = 100,      # (generic `psi_nb_modes`
+    # Number of iteration. Total duration is nb_iter / framerate
+    nb_iter = 600,      # (generic `nb_iter`
+     # [Hz] framerate of the sensing & correction
+    framerate = 10,     # (generic `psi_framerate`
+
+    # modal basis: zern, dh, gendrinou
+    modal_basis = 'zern',
+
+    # Control gains
+    gain_I=0.45, #0.2 for IMG # Integrator gain
+    gain_P=0.45, #0.1 for IMG # Proportional gain
+
+    # Saving results
+    save_loop_statistics=False,
+    save_phase_screens=False,
+    save_basedir='/home/gorban/', #'/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    save_dirname=None,  # TODO: explain difference with save_basedir
+
     # =========
     #  Kernel algorithm
     # =========
     asym_stop=True,
     asym_angle=180,                   # [optional]
     asym_width=0.1,                  # [optional]
+    # Asymmetric mask configuration. 
+    # Currently implemented: 'one_spider', 'two_spiders', 'two_lyot'
     asym_mask_option='two_spiders',
-    asym_model_fname=None, #toto.fits.gz',              # [optional]
-    # TODO remove this variable, by setting automatically tel_daim in ConfigParser
-    asym_telDiam=40,
+    asym_model_fname=None,               # [optional]
     # nb of steps along the pupil diameter
     asym_nsteps=33,
     # transmission min
@@ -110,41 +133,40 @@ conf = dict(
     # asym_nsteps=33, # nb of steps along the pupil diameter
     # asym_tmin=0.5, # transmission min
 
-    # =========
-    #  PSI
-    # =========
-    # [Hz] framerate of the psi correction
-    psi_framerate=10,
-    # number of iterations.
-    psi_nb_iter=600,
+    # # =========
+    # #  PSI
+    # # =========
+    # # [Hz] framerate of the psi correction
+    # psi_framerate=10,
+    # # number of iterations.
+    # psi_nb_iter=600,
 
-    # How is the PSI estimate process before correction:
-    #   'all'     : no projection or filtering
-    #   'zern'    : projection on theoretical Zernike mode (circ ap.) and modal control
-    #   'dh'    : disk harmonics
-    # TODO include support to the Gendrinou basis
-    psi_correction_mode='zern',
-    # number of modes (if not 'all')
-    psi_nb_modes=100,
-    # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
-    psi_start_mode_idx=4,
+    # # How is the PSI estimate process before correction:
+    # #   'all'     : no projection or filtering
+    # #   'zern'    : projection on theoretical Zernike mode (circ ap.) and modal control
+    # #   'dh'    : disk harmonics
+    # # TODO include support to the Gendrinou basis
+    # psi_correction_mode='zern',
+    # # number of modes (if not 'all')
+    # psi_nb_modes=100,
+    # # (if modal) index of first mode. with Zernike, 4 means no piston and tip/tilt
+    # psi_start_mode_idx=4,
 
-    # [nm rms] value above which the psi_correction will be skipped.
-    #   set to None if no skip limit
-    psi_skip_limit=None,
+    # # [nm rms] value above which the psi_correction will be skipped.
+    # #   set to None if no skip limit
+    # psi_skip_limit=None,
 
-    # Focal plane filtering sigma (Gaussian blurring)
-    #   and radius [lambda / D]
-    psi_filt_sigma=0.05,
-    psi_filt_radius=15,
+    # # Focal plane filtering sigma (Gaussian blurring)
+    # #   and radius [lambda / D]
+    # psi_filt_sigma=0.05,
+    # psi_filt_radius=15,
 
-    # PSI scaling if do not want to use 'auto scaling'
-    #   default is None, otherwise expected NCPA in [nm]
-    ncpa_expected_rms=None,     # 100, # 50, #250,        
+    # # PSI scaling if do not want to use 'auto scaling'
+    # #   default is None, otherwise expected NCPA in [nm]
+    # ncpa_expected_rms=None,     # 100, # 50, #250,  
 
-    # Control gain
-    gain_I=0.45, #0.2 for IMG
-    gain_P=0.45, #0.1 for IMG
+    # check_psi_convergence=False,
+
 
     # ============
     #   NCPA
@@ -187,14 +209,14 @@ conf = dict(
     # Scale factor, if want to change the level of WV
     wv_scaling=1,
 
-    # =============
-    # Saving results
-    save_loop_statistics=True,
-    save_phase_screens=False,
-    save_basedir='/Users/orban/Projects/METIS/4.PSI/psi_results/',
-    save_dirname=None,
+    # # =============
+    # # Saving results
+    # save_loop_statistics=True,
+    # save_phase_screens=False,
+    # save_basedir='/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    # save_dirname=None,
 
-    check_psi_convergence=False,
+    # check_psi_convergence=False,
 
 )
     # sort alphabetically

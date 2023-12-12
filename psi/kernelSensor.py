@@ -35,6 +35,7 @@ import importlib
 
 # sys.path.append('/Users/orban/Projects/METIS/4.PSI/psi_github/')
 import psi.psi_utils as psi_utils
+from psi.abstract_sensor import AbstractSensor
 from .configParser import loadConfiguration
 from .instruments import  CompassSimInstrument, DemoCompassSimInstrument, HcipySimInstrument
 from .helperFunctions import LazyLogger, timeit, build_directory_name, \
@@ -61,7 +62,7 @@ from xaosim import xaosim as xs
 from scipy.interpolate import griddata
 
 
-class KernelSensor():
+class KernelSensor(AbstractSensor):
     '''
      Kernel wavefront sensor
      (Asymmetric Fourier Plane WFS)
@@ -74,6 +75,7 @@ class KernelSensor():
          logger object. Default is ``LazyLogger``
     '''
     def __init__(self, config_file, logger=LazyLogger('KERN')):
+        super().__init__()
         self.logger=logger
         self.logger.info('Loading and checking configuration')
         self._config_file = config_file
@@ -149,18 +151,18 @@ class KernelSensor():
             self.logger.info('Results will be stored in '
                              '{0}'.format(self._directory))
 
-    def _save_loop_stats(self):
-        '''
-            Saving loop statistics to file
+    # def _save_loop_stats(self):
+    #     '''
+    #         Saving loop statistics to file
 
-            16/06/2023  copied from PsiSensor
-        '''
-        data = np.array(self._loop_stats)
-        np.savetxt(os.path.join(self._directory, 'loopStats.csv'),
-                  data,
-                  header ='units are nm \n it \t wfe_all_f \t wfe_qs_f \t wfe_all \t wfe_qs \t input_wv_avg \t wfe_all_f_avg \t wfe_static',
-                  fmt=['%i' , '%f', '%f', '%f', '%f', '%f', '%f', '%f'],
-                  delimiter= '\t')
+    #         16/06/2023  copied from PsiSensor
+    #     '''
+    #     data = np.array(self._loop_stats)
+    #     np.savetxt(os.path.join(self._directory, 'loopStats.csv'),
+    #               data,
+    #               header ='units are nm \n it \t wfe_all_f \t wfe_qs_f \t wfe_all \t wfe_qs \t input_wv_avg \t wfe_all_f_avg \t wfe_static',
+    #               fmt=['%i' , '%f', '%f', '%f', '%f', '%f', '%f', '%f'],
+    #               delimiter= '\t')
         
 
     def _buildModelKPI(self, fname="scexao_asym.fits.gz", verbose=False):
@@ -375,18 +377,21 @@ class KernelSensor():
         self.M2C_matrix_large = self.M2C_large.transformation_matrix[:, nmode_shift:]
         self.C2M_large =hcipy.inverse_tikhonov(self.M2C_large.transformation_matrix,
                                                1e-3)[nmode_shift:,:]
+        
+        self._M2C = self.M2C_matrix_large
+        self._C2M = self.C2M_large
 
-    def _modalFilteringOnEP(self, ncpa_estimate):
-        '''
-            Modal projection (/filtering) on entrance pupil grid
+    # def _modalFilteringOnEP(self, ncpa_estimate):
+    #     '''
+    #         Modal projection (/filtering) on entrance pupil grid
 
-            TODO: uniformize method namings
-        '''
-        ncpa_modes      = self.C2M_large.dot(ncpa_estimate.flatten() * self.inst.aperture.flatten())
-        # ncpa_estimate  = self.M2C_large.transformation_matrix.dot(ncpa_modes)
-        ncpa_estimate  = self.M2C_matrix_large.dot(ncpa_modes)
+    #         TODO: uniformize method namings
+    #     '''
+    #     ncpa_modes      = self.C2M_large.dot(ncpa_estimate.flatten() * self.inst.aperture.flatten())
+    #     # ncpa_estimate  = self.M2C_large.transformation_matrix.dot(ncpa_modes)
+    #     ncpa_estimate  = self.M2C_matrix_large.dot(ncpa_modes)
 
-        return ncpa_estimate, ncpa_modes
+    #     return ncpa_estimate, ncpa_modes
 
     def _projectOnModalBasis(self, ncpa_estimate, proj_mask):
         '''
@@ -537,79 +542,79 @@ class KernelSensor():
     #     loop_stat.append(rms_res_static_NCPA_filt)  # long-term average of the correction compared to the QS part
     #     self._loop_stats.append(loop_stat)
 
-    def evaluateSensorEstimate(self, verbose=True):
-        '''
-            Compute the rms errors made on quasi-static NCPA and on water vapour seeing.
+    # def evaluateSensorEstimate(self, verbose=True):
+    #     '''
+    #         Compute the rms errors made on quasi-static NCPA and on water vapour seeing.
 
-            /!\ Only valid for a `CompassSimInstrument` and `DemoCompassSimInstrument`
+    #         /!\ Only valid for a `CompassSimInstrument` and `DemoCompassSimInstrument`
 
-            TODO make it generic to any instruments
-        '''
-        res_ncpa_qs = self.inst.phase_ncpa + self.inst.phase_ncpa_correction
-        res_ncpa_all = self.inst.phase_ncpa + self.inst.phase_wv + \
-            self.inst.phase_ncpa_correction
-        # 2022-06-2x ...
-        if self.iter == 0:
-            res_static_ncpa_qs = self.inst.phase_ncpa
-        else:
-            # tmp_avg = np.mean(self.inst.phase_ncpa_correction[self.inst.aperture>=0.5])
-            self._ncpa_correction_long_term += self.inst.phase_ncpa_correction #- tmp_avg)
-            # self._ncpa_correction_long_term /= self.iter
+    #         TODO make it generic to any instruments
+    #     '''
+    #     res_ncpa_qs = self.inst.phase_ncpa + self.inst.phase_ncpa_correction
+    #     res_ncpa_all = self.inst.phase_ncpa + self.inst.phase_wv + \
+    #         self.inst.phase_ncpa_correction
+    #     # 2022-06-2x ...
+    #     if self.iter == 0:
+    #         res_static_ncpa_qs = self.inst.phase_ncpa
+    #     else:
+    #         # tmp_avg = np.mean(self.inst.phase_ncpa_correction[self.inst.aperture>=0.5])
+    #         self._ncpa_correction_long_term += self.inst.phase_ncpa_correction #- tmp_avg)
+    #         # self._ncpa_correction_long_term /= self.iter
 
-            res_static_ncpa_qs = self.inst.phase_ncpa + (self._ncpa_correction_long_term / self.iter)
+    #         res_static_ncpa_qs = self.inst.phase_ncpa + (self._ncpa_correction_long_term / self.iter)
 
-        # 2022-07-01 -- metric with the average WV over one iteration
-        res_ncpa_all_bis = self.inst.phase_ncpa + self.inst.phase_wv_integrated + \
-            self.inst.phase_ncpa_correction
+    #     # 2022-07-01 -- metric with the average WV over one iteration
+    #     res_ncpa_all_bis = self.inst.phase_ncpa + self.inst.phase_wv_integrated + \
+    #         self.inst.phase_ncpa_correction
 
-        conv2nm = self.inst.wavelength / (2 * np.pi) * 1e9
-        # rms_input_qs = np.std(self.inst.phase_ncpa[self.inst.aperture==1]) * conv2nm
-        # rms_input_all = np.std((self.inst.phase_ncpa + \
-        #                         self.inst.phase_wv)[self.inst.aperture==1]) * conv2nm
-        rms_res_qs = np.std(res_ncpa_qs[self.inst.aperture>=0.5]) * conv2nm
-        rms_res_all = np.std(res_ncpa_all[self.inst.aperture>=0.5]) * conv2nm
-        rms_res_all_bis = np.std(res_ncpa_all_bis[self.inst.aperture>=0.5]) * conv2nm
-
-
-        if self.cfg.params.psi_correction_mode is not 'all':
-            tmp, _ = self._modalFilteringOnEP(res_ncpa_qs)
-            rms_res_qs_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-            tmp, _ = self._modalFilteringOnEP(res_ncpa_all)
-            rms_res_all_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-            tmp, _ = self._modalFilteringOnEP(res_ncpa_all_bis)
-            rms_res_all_bis_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-        else:
-            rms_res_qs_filt = rms_res_qs
-            rms_res_all_filt = rms_res_all
-
-        tmp, _ = self._modalFilteringOnEP(self.inst.phase_wv)
-        rms_wv = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-        tmp, _ = self._modalFilteringOnEP(self.inst.phase_wv_integrated)
-        rms_wv_integrated = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-
-        tmp, _ = self._modalFilteringOnEP(self.inst.phase_ncpa_correction)
-        rms_corr = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-
-        tmp, _ = self._modalFilteringOnEP(res_static_ncpa_qs)
-        rms_res_static_NCPA_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-
-        if verbose:
-            self.logger.info('#{0} : Res [QS, QS+WV,  QS+WV b] = [{1:.0f}, {2:.0f}, {3:.0f}]'.\
-                format(self.iter, rms_res_qs, rms_res_all, rms_res_all_bis))
-            self.logger.info('#{0} : Res. filt. [QS, QS+WV, QS+WV b] = [{1:.0f}, {2:.0f}, {3:.0f}]'.\
-                format(self.iter, rms_res_qs_filt, rms_res_all_filt, rms_res_all_bis_filt))
-            self.logger.info('#{0} : input WV_f rms (last, integrated)  = ({1:.0f}, {2:.0f})'.format(self.iter, rms_wv, rms_wv_integrated))
-            self.logger.info('#{0} : PSI correction rms = {1:.0f}'.format(self.iter, rms_corr))
-            self.logger.info('#{0} : Long-term (static) residual rms = {1:.0f}'.format(self.iter, rms_res_static_NCPA_filt))
+    #     conv2nm = self.inst.wavelength / (2 * np.pi) * 1e9
+    #     # rms_input_qs = np.std(self.inst.phase_ncpa[self.inst.aperture==1]) * conv2nm
+    #     # rms_input_all = np.std((self.inst.phase_ncpa + \
+    #     #                         self.inst.phase_wv)[self.inst.aperture==1]) * conv2nm
+    #     rms_res_qs = np.std(res_ncpa_qs[self.inst.aperture>=0.5]) * conv2nm
+    #     rms_res_all = np.std(res_ncpa_all[self.inst.aperture>=0.5]) * conv2nm
+    #     rms_res_all_bis = np.std(res_ncpa_all_bis[self.inst.aperture>=0.5]) * conv2nm
 
 
-        loop_stat = [self.iter]
-        loop_stat.append(rms_res_all_filt)
-        loop_stat.append(rms_res_qs_filt)
-        loop_stat.append(rms_res_all)
-        loop_stat.append(rms_res_qs)
-        # [01/07/2022] : added 01/07/2022
-        loop_stat.append(rms_wv_integrated)  # input WV average over 1/psi_framertae -- on the modes
-        loop_stat.append(rms_res_all_bis_filt)    # rms all considering the average WV and not the instantaneoius
-        loop_stat.append(rms_res_static_NCPA_filt)  # long-term average of the correction compared to the QS part
-        self._loop_stats.append(loop_stat)
+    #     if self.cfg.params.psi_correction_mode is not 'all':
+    #         tmp, _ = self._modalFilteringOnEP(res_ncpa_qs)
+    #         rms_res_qs_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+    #         tmp, _ = self._modalFilteringOnEP(res_ncpa_all)
+    #         rms_res_all_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+    #         tmp, _ = self._modalFilteringOnEP(res_ncpa_all_bis)
+    #         rms_res_all_bis_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+    #     else:
+    #         rms_res_qs_filt = rms_res_qs
+    #         rms_res_all_filt = rms_res_all
+
+    #     tmp, _ = self._modalFilteringOnEP(self.inst.phase_wv)
+    #     rms_wv = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+    #     tmp, _ = self._modalFilteringOnEP(self.inst.phase_wv_integrated)
+    #     rms_wv_integrated = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+
+    #     tmp, _ = self._modalFilteringOnEP(self.inst.phase_ncpa_correction)
+    #     rms_corr = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+
+    #     tmp, _ = self._modalFilteringOnEP(res_static_ncpa_qs)
+    #     rms_res_static_NCPA_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+
+    #     if verbose:
+    #         self.logger.info('#{0} : Res [QS, QS+WV,  QS+WV b] = [{1:.0f}, {2:.0f}, {3:.0f}]'.\
+    #             format(self.iter, rms_res_qs, rms_res_all, rms_res_all_bis))
+    #         self.logger.info('#{0} : Res. filt. [QS, QS+WV, QS+WV b] = [{1:.0f}, {2:.0f}, {3:.0f}]'.\
+    #             format(self.iter, rms_res_qs_filt, rms_res_all_filt, rms_res_all_bis_filt))
+    #         self.logger.info('#{0} : input WV_f rms (last, integrated)  = ({1:.0f}, {2:.0f})'.format(self.iter, rms_wv, rms_wv_integrated))
+    #         self.logger.info('#{0} : PSI correction rms = {1:.0f}'.format(self.iter, rms_corr))
+    #         self.logger.info('#{0} : Long-term (static) residual rms = {1:.0f}'.format(self.iter, rms_res_static_NCPA_filt))
+
+
+    #     loop_stat = [self.iter]
+    #     loop_stat.append(rms_res_all_filt)
+    #     loop_stat.append(rms_res_qs_filt)
+    #     loop_stat.append(rms_res_all)
+    #     loop_stat.append(rms_res_qs)
+    #     # [01/07/2022] : added 01/07/2022
+    #     loop_stat.append(rms_wv_integrated)  # input WV average over 1/psi_framertae -- on the modes
+    #     loop_stat.append(rms_res_all_bis_filt)    # rms all considering the average WV and not the instantaneoius
+    #     loop_stat.append(rms_res_static_NCPA_filt)  # long-term average of the correction compared to the QS part
+    #     self._loop_stats.append(loop_stat)

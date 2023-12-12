@@ -22,6 +22,7 @@ class AbstractSensor():
     
     def __init__(self):
         self._ncpa_correction_long_term = 0
+        self._axes = None
 
     # @property
     # def inst(self):
@@ -258,17 +259,21 @@ class AbstractSensor():
                    delimiter= '\t')
 
     def show(self, save_video=False):
-        ax1 = plt.subplot(141, label='science')
+        if self._axes is None:
+            fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(16, 4))
+            self._axes = axes
+        ax1, ax2, ax3, ax4 = self._axes
+        # ax1 = plt.subplot(141, label='science')
         im1, _= imshow_norm(self.science_image, stretch=LogStretch(), ax=ax1)
         vmin = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 1)
         vmax = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 99)
         inter = ManualInterval(vmin, vmax)
         #--
-        ax2 = plt.subplot(142, label='dist')
+        # ax2 = plt.subplot(142, label='dist')
         im2, _=imshow_norm((self.inst.phase_wv + self.inst.phase_ncpa).shaped,
                            interval=inter, ax=ax2)
         #--
-        ax3 = plt.subplot(143, label='wfs')
+        # ax3 = plt.subplot(143, label='wfs')
         _dim = self.inst.pupilGrid.shape[0]
         im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
                            self.inst.aperture.shaped,
@@ -277,7 +282,7 @@ class AbstractSensor():
         #                    self.inst.aperture.shaped,
         #                    interval=inter, ax=ax3)
         #--
-        ax4 = plt.subplot(144, label='res')
+        # ax4 = plt.subplot(144, label='res')
         im4, _=imshow_norm(self.inst.aperture.shaped *
                            (self.inst.phase_wv + self.inst.phase_ncpa +
                            self.inst.phase_ncpa_correction).shaped,

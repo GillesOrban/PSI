@@ -423,50 +423,50 @@ class KernelSensor(AbstractSensor):
             self.show()
 
 
-    def show(self):
-        '''
-        TODO tidy up and find solution for live display and video saving
-        '''
-        # plt.clf()
+    # def show(self):
+    #     '''
+    #     TODO tidy up and find solution for live display and video saving
+    #     '''
+    #     # plt.clf()
 
-        # plt.subplot(141)
-        # imshow_norm(img.mean(0), stretch=LogStretch())
-        ax1 = plt.subplot(141)
-        im1, _= imshow_norm(self.science_image, stretch=LogStretch(), ax=ax1)
-        # plt.subplot(142)
-        # inter = PercentileInterval(99.5)
-        vmin = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 1)
-        vmax = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 99)
-        inter = ManualInterval(vmin, vmax)
-        ax2 = plt.subplot(142)
-        im2, _=imshow_norm((self.inst.phase_wv + self.inst.phase_ncpa).shaped,
-                           interval=inter, ax=ax2)
-        # plt.subplot(143)
-        # imshow_norm(self._ncpa_estimate.reshape((256, 256)) * self.inst.aperture.shaped, interval=inter)
-        ax3 = plt.subplot(143)
-        _dim = self.inst.pupilGrid.shape[0]
-        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
-                           self.inst.aperture.shaped,
-                           interval=inter, ax=ax3)
-        # plt.subplot(144)
-        ax4 = plt.subplot(144)
-        im4, _=imshow_norm(self.inst.aperture.shaped *
-                           (self.inst.phase_wv + self.inst.phase_ncpa +
-                           self.inst.phase_ncpa_correction).shaped,
-                           interval=inter, ax=ax4)
+    #     # plt.subplot(141)
+    #     # imshow_norm(img.mean(0), stretch=LogStretch())
+    #     ax1 = plt.subplot(141)
+    #     im1, _= imshow_norm(self.science_image, stretch=LogStretch(), ax=ax1)
+    #     # plt.subplot(142)
+    #     # inter = PercentileInterval(99.5)
+    #     vmin = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 1)
+    #     vmax = np.percentile(self.inst.phase_wv + self.inst.phase_ncpa, 99)
+    #     inter = ManualInterval(vmin, vmax)
+    #     ax2 = plt.subplot(142)
+    #     im2, _=imshow_norm((self.inst.phase_wv + self.inst.phase_ncpa).shaped,
+    #                        interval=inter, ax=ax2)
+    #     # plt.subplot(143)
+    #     # imshow_norm(self._ncpa_estimate.reshape((256, 256)) * self.inst.aperture.shaped, interval=inter)
+    #     ax3 = plt.subplot(143)
+    #     _dim = self.inst.pupilGrid.shape[0]
+    #     im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
+    #                        self.inst.aperture.shaped,
+    #                        interval=inter, ax=ax3)
+    #     # plt.subplot(144)
+    #     ax4 = plt.subplot(144)
+    #     im4, _=imshow_norm(self.inst.aperture.shaped *
+    #                        (self.inst.phase_wv + self.inst.phase_ncpa +
+    #                        self.inst.phase_ncpa_correction).shaped,
+    #                        interval=inter, ax=ax4)
 
-        ax1.set_axis_off()
-        ax2.set_axis_off()
-        ax3.set_axis_off()
-        ax4.set_axis_off()
-        ax2.set_title('static NCPA + WV')
-        ax3.set_title('NCPA correction')
-        ax4.set_title('Residuals')
-        plt.tight_layout()
-        # plt.draw()
-        # plt.pause(0.01)
-        # time.sleep(0.1)
-        self._ims.append([im1, im2, im3, im4])
+    #     ax1.set_axis_off()
+    #     ax2.set_axis_off()
+    #     ax3.set_axis_off()
+    #     ax4.set_axis_off()
+    #     ax2.set_title('static NCPA + WV')
+    #     ax3.set_title('NCPA correction')
+    #     ax4.set_title('Residuals')
+    #     plt.tight_layout()
+    #     # plt.draw()
+    #     # plt.pause(0.01)
+    #     # time.sleep(0.1)
+    #     self._ims.append([im1, im2, im3, im4])
 
     def loop(self, **kwargs):
         self._ims = []  # Matplotlib Artist list 

@@ -36,7 +36,7 @@ class dataTrain:
         self.logger.info('Setting TensorBoard log dir to {0}'.format(dd))
         self._tb_writer = SummaryWriter(dd)
 
-    def trainModel(self, showTrainingCurve=False, useTensorBoard=True):
+    def trainModel(self, showTrainingCurve=False, useTensorBoard=True, nbModes=None):
         '''
         setup/setConfig needs to be called before
         '''
@@ -44,6 +44,11 @@ class dataTrain:
         self.data_info = {}
         self.dataset_master = {}
         self.dataset_master, self.data_info = rt.read_h5(filename=self.config["training_data_fname"])
+        if nbModes is not None:
+            assert nbModes <= self.data_info['nb_modes']
+            self.logger.info("Training model on {0}/{1} modes".format(nbModes, self.data_info['nb_modes']))
+            self.data_info['nb_modes'] = nbModes
+            self.dataset_master['zernike_coefficients'] = self.dataset_master['zernike_coefficients'][:,:nbModes]
         self.logger.info("Data the model will be trained on: ")
         for key, val in self.data_info.items():
             print(f"{key}: {val}")

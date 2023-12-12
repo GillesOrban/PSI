@@ -103,13 +103,14 @@ class DeepSensor(AbstractSensor):
 
     def buildModel(self, tag_name,
                    regenerate=False, retrain=False, auto_train=False,
-                   nb_samples=None, model_path=None):
+                   model_path=None, nb_samples=None, nb_modes=None):
         '''
         Prepare the CNN framework.
         Generate data if necessary
         Train if necessary
 
         TODO provide the cfg filenames instead of relying on the default set files
+        TODO option to provide nb modes for training...
 
         PARAMETERS
 
@@ -120,13 +121,16 @@ class DeepSensor(AbstractSensor):
             Force training and override existing model
         auto_train  :   bool
             Automatically start training the model without asking user confirmation
+        model_path  :   string
+            If None (default), use the value in training_config.yml
+            Otherwise, use the value given here.
         nb_samples  :   int
             If None (default), use the value in the generator_config.yml. 
             Otherwise, use the value given here.
             N.B.: only affect the dataset (the training automatically uses the complete dataset)
-        model_path  :   string
-            If None (default), use the value in training_config.yml
-            Otherwise, use the value given here.
+        nb_modes    : int
+            If None (default), use the number of modes in the dataset.
+            Otherwise use the value given here (<= nb modes in dataset)
 
         '''
         # 1. Data generation
@@ -175,7 +179,7 @@ class DeepSensor(AbstractSensor):
                     return 0 
             if not os.path.exists(model_path):
                 os.makedirs(model_path)
-            self.trainer.trainModel() 
+            self.trainer.trainModel(nbModes = nb_modes) 
 
         # 3. Inference setup
         self.logger.info('3. Preparing for inference')

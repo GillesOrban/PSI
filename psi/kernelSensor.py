@@ -470,9 +470,12 @@ class KernelSensor(AbstractSensor):
 
     def loop(self, **kwargs):
         self._ims = []  # Matplotlib Artist list 
+        db_logger = kwargs.get('db_logger', None)
+        if 'db_logger' in kwargs.keys():
+            kwargs.pop('db_logger')
         for i in range(self.cfg.params.nb_iter):
             self.next(**kwargs)
-            self.evaluateSensorEstimate()
+            self.evaluateSensorEstimate(db_logger=db_logger)
             # if self.cfg.params.save_phase_screens:
             #     self._store_phase_screens_to_file(self.iter)
 

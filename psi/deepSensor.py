@@ -256,10 +256,12 @@ class DeepSensor(AbstractSensor):
 
     def loop(self, **kwargs):
         self._ims = [] # placeholder if save_video is True, see show()
-
+        db_logger = kwargs.get('db_logger', None)
+        if 'db_logger' in kwargs.keys():
+            kwargs.pop('db_logger')
         for _ in range(self.cfg.params.nb_iter):
             self.next(**kwargs)
-            self.evaluateSensorEstimate()
+            self.evaluateSensorEstimate(db_logger=db_logger)
 
         if self.cfg.params.save_loop_statistics:
             self._save_loop_stats()

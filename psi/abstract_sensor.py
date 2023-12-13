@@ -96,7 +96,7 @@ class AbstractSensor():
         wf_filtered = self._M2C.dot(modes)
         return wf_filtered, modes
 
-    def evaluateSensorEstimate(self, verbose=True, static=False):
+    def evaluateSensorEstimate(self, verbose=True, static=False, db_logger=None):
         '''
         Compute the rms errors made on quasi-static NCPA and on water vapour seeing.
 
@@ -226,6 +226,9 @@ class AbstractSensor():
 
         self._loop_stats.append(loop_stat)
 
+        if db_logger is not None:
+            db_logger.log_scalar('wfe_modes', rms_res_all_filt)
+            db_logger.log_scalar('wfe_total', rms_res_all)
 
     def _save_loop_stats(self):
         '''

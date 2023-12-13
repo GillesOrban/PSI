@@ -178,11 +178,14 @@ class CompassSimInstrument(GenericInstrument):
                                                   npupil=self._size_pupil_grid,
                                                   rot90=True,
                                                   binary=True)(self.pupilGrid)
+        self._pupil_transmission=1
         if  self._asym_stop and self._inst_mode == 'IMG':
             full_transmission = np.sum(self.aperture)
             self.aperture *= self._asym_mask(self.pupilGrid)
             new_transmission = np.sum(self.aperture)
-            self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.format(100 - new_transmission / full_transmission *100))
+            self._pupil_transmission = new_transmission / full_transmission
+            self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.\
+                             format(100 -  self._pupil_transmission * 100))
 
 
         # self.aperture = np.rot90(self.aperture)
@@ -198,7 +201,9 @@ class CompassSimInstrument(GenericInstrument):
                 full_transmission = np.sum(self.lyot_stop_mask)
                 self.lyot_stop_mask *= self._asym_mask(self.pupilGrid)
                 new_transmission = np.sum(self.lyot_stop_mask)
-                self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.format(100 - new_transmission / full_transmission *100))
+                self._pupil_transmission = new_transmission / full_transmission
+                self.logger.info('Asymmetric stop frac. surface {0:.1f} [%]'.\
+                                 format(100 - self._pupil_transmission *100))
 
 
         if self._inst_mode == 'RAVC' : #or self._inst_mode == 'APP':
@@ -217,8 +222,8 @@ class CompassSimInstrument(GenericInstrument):
         # if self.noise == 1:
         #     pass
         if self.noise == 2:
-            self.bckg_level = conf.num_photons_bkg
-        self.num_photons = conf.num_photons
+            self.bckg_level = conf.num_photons_bkg * self._pupil_transmission
+        self.num_photons = conf.num_photons * self._pupil_transmission
         self.bandwidth = conf.bandwidth
 
         # by default include residual turbulence phase screens

@@ -48,8 +48,11 @@ class GenericInstrument():
         self.phase_ncpa = hcipy.Field(0.0, self.pupilGrid)         # knowledge only in Simulation
         self.phase_wv = hcipy.Field(0.0, self.pupilGrid)           # knowledge only in Simulation
         self.phase_wv_integrated = hcipy.Field(0.0, self.pupilGrid)    # knowledge only in Simulation
-        self.phase_ncpa_correction = hcipy.Field(0.0, self.pupilGrid)  # NCPA correction applied
-        self.phase_ncpa_correction_integrator = hcipy.Field(0.0, self.pupilGrid)
+        self.phase_ncpa_correction = hcipy.Field(0.0,
+                                                 self.pupilGrid)  # NCPA correction applied
+        self._next_phase_ncpa_correction = hcipy.Field(np.zeros(self._size_pupil_grid*self._size_pupil_grid),
+                                                       self.pupilGrid)  # NCPA correction applied
+        self._phase_ncpa_correction_integrator = hcipy.Field(0.0, self.pupilGrid)
 
         pass
 
@@ -512,7 +515,9 @@ class CompassSimInstrument(GenericInstrument):
                 self._update_dynamic_ncpa(self._start_time_last_sci_dit + timeIdxInMs[i])
 
             # Get current NCPA correction
-
+            # We now update the phase correction: this is link to the next() functions in Sensors were 
+            # 1/ the grabScienceImage is called, and 2/ the NCPA is corrected, 3/ we perform the evaluation
+            self.phase_ncpa_correction = self._next_phase_ncpa_correction.copy()
             total_phase_cube[i] = self.phase_residual.ravel() + \
                 self.phase_wv + self.phase_ncpa + self.phase_ncpa_correction
 
@@ -644,15 +649,19 @@ class CompassSimInstrument(GenericInstrument):
                 True: apply leaky PI controller. False: apply `phase_int` as absolute phase correction
         '''
         if integrator:
-          self.phase_ncpa_correction_integrator = leak * self.phase_ncpa_correction_integrator + phase_int
-          self.phase_ncpa_correction = phase_prop + self.phase_ncpa_correction_integrator
+          self._phase_ncpa_correction_integrator = leak * self._phase_ncpa_correction_integrator + phase_int
+          self._next_phase_ncpa_correction = phase_prop + self._phase_ncpa_correction_integrator
         else:
-          self.phase_ncpa_correction = phase
+          self._next_phase_ncpa_correction = phase_int
+        # self.phase_ncpa_correction = self._next_phase_ncpa_correction
 
-
-    def synchronizeBuffers(self, wfs_telemetry_buffer, sci_image_buffer):
+    def synchronizeBuffers(self, wfs_telemetry_buffer=None, sci_image_buffer=None):
         '''
-            Synchronize science and wfs telemetry buffers
+            Synchronize science and wfs telemetry buffers.
+            This is initially intended for the PsiSensor, but is also needed for other sensor where the 
+            time variable need to be updated. 
+            For PsiSensor, wfs_telemetry and sci_image buffers should be provided.
+            For other sensors, the call should be ``synchronizeBuffers(None, None)''
 
             Parameters
             ----------
@@ -671,25 +680,28 @@ class CompassSimInstrument(GenericInstrument):
             telemetry_indexing : list
                 list of start and stop index in the wfs telemetry buffer for the successive science image
         '''
-        if self._start_time_wfs != self._start_time_sci_buffer:
-            self.logger.warn('Start buffers not sync')
-            self.logger.debug('Start WFS buffer is {0}'.format(self._start_time_wfs))
-            self.logger.debug('Start SCI buffer is {0}'.format(self._start_time_sci_buffer))
-            # return 0
-        if self._end_time_wfs != self._end_time_sci_buffer:
-            self.logger.warn('End buffers not sync')
-            self.logger.debug('End WFS buffer is {0}'.format(self._end_time_wfs))
-            self.logger.debug('End SCI buffer is {0}'.format(self._end_time_sci_buffer))
-            # return 0
+        if wfs_telemetry_buffer is not None:
+            if self._start_time_wfs != self._start_time_sci_buffer:
+                self.logger.warn('Start buffers not sync')
+                self.logger.debug('Start WFS buffer is {0}'.format(self._start_time_wfs))
+                self.logger.debug('Start SCI buffer is {0}'.format(self._start_time_sci_buffer))
+                # return 0
+            if self._end_time_wfs != self._end_time_sci_buffer:
+                self.logger.warn('End buffers not sync')
+                self.logger.debug('End WFS buffer is {0}'.format(self._end_time_wfs))
+                self.logger.debug('End SCI buffer is {0}'.format(self._end_time_sci_buffer))
+                # return 0
 
-        self._current_time_ms = np.copy(self._end_time_wfs)
+            self._current_time_ms = np.copy(self._end_time_wfs)
 
-        # For each science image, calculate a start and stop index for
-        #   the wfs telemetry buffer
-        telemetry_indexing = [(i * self.nb_ao_per_sci, (i+1) * self.nb_ao_per_sci)
-                           for i in range(self.nbOfSciImages)]
+            # For each science image, calculate a start and stop index for
+            #   the wfs telemetry buffer
+            telemetry_indexing = [(i * self.nb_ao_per_sci, (i+1) * self.nb_ao_per_sci)
+                            for i in range(self.nbOfSciImages)]
 
-        return telemetry_indexing
+            return telemetry_indexing
+        else:
+            self._current_time_ms = np.copy(self._end_time_sci_buffer)
 
     def getNumberOfPhotons(self):
         '''

@@ -120,6 +120,16 @@ class KernelSensor(AbstractSensor):
         self._loadKPO(fname_model=self.cfg.params.asym_model_fname)
 
 
+        # # Build focal plane filter for PSI
+        self.filter_fp = psi_utils.makeFilters(
+            self.inst.focalGrid,
+            "back_prop",
+            sigma=self.cfg.params.psi_filt_sigma,
+            lD=self.cfg.params.psi_filt_radius * 2,
+            ravel=False
+            )
+
+
         # Init logging buffer
         self._ncpa_correction_long_term = 0
         self.iter = 0 # iteration index
@@ -240,6 +250,7 @@ class KernelSensor(AbstractSensor):
         coords = np.array(vac_coords[:,0:2] / self._step + \
                     (asym_telDiam/2) / self._step, dtype='int')
         self._small_aperture[list(coords[:,1]), list(coords[:,0])] = vac_coords[:,2]
+        # self._small_aperture[self._small_aperture!=0]=1
 
     def computeWavefront(self, img):
         # TODO empty kpo.CVIS (and other arrays) that use unnecessarily memory
@@ -313,7 +324,7 @@ class KernelSensor(AbstractSensor):
     #                     (xnew, ynew),
     #                     method='linear')
 
-    def _initModalBases(self, nbOfModes=100, nmode_shift=3):
+    def _initModalBases(self, nbOfModes=100, nmode_shift=3, reortho=True):
         '''
         FIXME re-orthonormalization leads to NaNs for the small aperture
             (because odd grid ??)
@@ -346,8 +357,9 @@ class KernelSensor(AbstractSensor):
 
         mask = self._small_aperture.flatten()
         # mask[mask!=0] =1
+        #if reortho:
         self.M2C_small = psi_utils.reorthonormalize(self.M2C_small,
-                                                    mask)
+                                                        mask)
         self.M2C_matrix_small = self.M2C_small.transformation_matrix[:, nmode_shift:]
         # if any(np.isnan(self.M2C_matrix_large)):
         #     self.logger.warning('NaN in M2C small matrix, setting to 0s')
@@ -372,8 +384,15 @@ class KernelSensor(AbstractSensor):
         # binary_aperture = np.copy(self.inst.aperture)
         # binary_aperture[self.inst.aperture >=0.5] = 1
         # binary_aperture[self.inst.aperture < 0.5] = 0
-        self.M2C_large = psi_utils.reorthonormalize(self.M2C_large,
-                                                    self.inst.aperture)
+        if reortho:
+            if self.cfg.params.pupil == 'ELT':
+                aper = hcipy.aperture.make_circular_aperture(0.98)(self.inst.pupilGrid)
+                aper -= hcipy.aperture.make_circular_aperture(0.25)(self.inst.pupilGrid)
+                aper *= self.inst._asym_mask(self.inst.pupilGrid)
+            else:
+                aper = self.inst.aperture
+            self.M2C_large = psi_utils.reorthonormalize(self.M2C_large,
+                                                    aper)
         self.M2C_matrix_large = self.M2C_large.transformation_matrix[:, nmode_shift:]
         self.C2M_large =hcipy.inverse_tikhonov(self.M2C_large.transformation_matrix,
                                                1e-3)[nmode_shift:,:]
@@ -402,20 +421,30 @@ class KernelSensor(AbstractSensor):
 
         return ncpa_estimate, ncpa_modes
 
-    def next(self, display=True, check=False, leak=1, integrator=True):
+    def next(self, display=True, check=False, leak=1, gains=[None,None], integrator=True):
         # TODO replace psi_framerate by kernel_framerate
         nbOfSeconds = 1/self.cfg.params.framerate
         science_images_buffer = self.inst.grabScienceImages(nbOfSeconds)
-
         self.science_image = science_images_buffer.mean(0)
-        self.computeWavefront(self.science_image)
+
+        self.inst.synchronizeBuffers(None, None)
+
+        self.computeWavefront(self.science_image * self.filter_fp)
         self._ncpa_estimate, _ = self._projectOnModalBasis(self.wavefront, self._small_aperture)
-
-        gain = self.cfg.params.gain_I
-        self._ncpa_command = - gain * self._ncpa_estimate
-
+        # Remove piston
+        self._ncpa_estimate -= np.mean((self._ncpa_estimate * 
+                                       self.inst.aperture)[self.inst.aperture !=0])
+        if gains == [None, None]:
+            gain_I = self.cfg.params.gain_I
+            gain_P = self.cfg.params.gain_P
+        else:
+            gain_I = gains[0]
+            gain_P = gains[1]
+        
+        self._ncpa_command = - gain_I * self._ncpa_estimate
+        
         self.inst.setNcpaCorrection(self._ncpa_command,
-                                    phase_prop=self.cfg.params.gain_P * self._ncpa_command,
+                                    phase_prop=gain_P * self._ncpa_estimate,
                                     integrator=integrator, leak=leak)
         self.iter +=1
 

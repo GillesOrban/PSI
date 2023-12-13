@@ -3,7 +3,7 @@ import hcipy
 import aotools
 from astropy.modeling import models
 
-def reorthonormalize(modal_basis, aperture):
+def reorthonormalize(modal_basis, aperture, rcond=1e-15):
     # modal_basis.transformation_matrix can contain NaN in some cases...
     #   hopefully there should be masked by the aperture
     modal_basis.transformation_matrix[np.isnan(modal_basis.transformation_matrix)]=0
@@ -12,11 +12,12 @@ def reorthonormalize(modal_basis, aperture):
     transformation_matrix[np.isnan(transformation_matrix)] = 0
     # q, r = np.linalg.qr(transformation_matrix, mode='complete')
     
-    nvalid_pixels = np.sum(aperture)
+    nvalid_pixels = np.sum(aperture[aperture>=0.5])
     cross_product = 1 / nvalid_pixels * np.dot(transformation_matrix.T, transformation_matrix)
     L = np.linalg.cholesky(cross_product)
 
-    basis_orthonormalized = np.dot(transformation_matrix, np.linalg.inv(L).T)
+    # basis_orthonormalized = np.dot(transformation_matrix, np.linalg.inv(L).T)
+    basis_orthonormalized = np.dot(transformation_matrix, np.linalg.pinv(L, rcond=rcond).T)
 
     return hcipy.ModeBasis(basis_orthonormalized, modal_basis.grid)
 
@@ -93,6 +94,8 @@ def gendrinou_basis(pupil_grid, aperture, nActOnDiam, nbModes=None):
         
         norm = np.std(modeBasis[i][aperture==1])
         modeBasis[i] /= norm
+        # Removing piston component
+        modeBasis[i] -= np.mean(modeBasis[i][aperture==1])
         cmdBasis[i] /= norm
 
     modeBasis_hcipy = hcipy.ModeBasis([modeBasis[i].flatten() for i in range(nbModes)], pupil_grid)

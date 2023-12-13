@@ -12,7 +12,7 @@ import matplotlib.animation as animation
 from astropy.visualization import imshow_norm,\
     SqrtStretch, MinMaxInterval, PercentileInterval, \
     LinearStretch, SinhStretch, LogStretch, ManualInterval
-
+from astropy.stats import mad_std
 
 class AbstractSensor():
     '''
@@ -108,6 +108,9 @@ class AbstractSensor():
         # * NB: using the WV integrated phase instead of the instantaneous WV phase
         res_ncpa_all = self.inst.phase_ncpa + self.inst.phase_wv_integrated + \
             self.inst.phase_ncpa_correction
+        # Measurement error: not taking the delay into account
+        res_ncpa_all_no_delay = self.inst.phase_ncpa + self.inst.phase_wv_integrated + \
+            self.inst._next_phase_ncpa_correction
         
         if static:
             # Purely static residual aberrations (``double integration'')
@@ -125,6 +128,8 @@ class AbstractSensor():
         rms_wv_integrated = np.std(self.inst.phase_wv_integrated[self.inst.aperture>=0.5]) * conv2nm
         rms_res_qs = np.std(res_ncpa_qs[self.inst.aperture>=0.5]) * conv2nm
         rms_res_all = np.std(res_ncpa_all[self.inst.aperture>=0.5]) * conv2nm
+        rms_res_all_no_delay = np.std(res_ncpa_all_no_delay[self.inst.aperture>=0.5]) * conv2nm
+
 
         # Modal filtering and recomputation of WFE
         # tmp, _ = self._modal_filtering_on_pupil(self.inst.phase_wv)
@@ -138,7 +143,8 @@ class AbstractSensor():
         rms_res_qs_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
         tmp, _ = self._modal_filtering_on_pupil(res_ncpa_all)
         rms_res_all_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
-
+        tmp, _ = self._modal_filtering_on_pupil(res_ncpa_all_no_delay)
+        rms_res_all_filt_no_delay = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
 
         if self.inst._inst_mode in ['CVC', 'RAVC']:
             pup = self.inst.lyot_stop_mask
@@ -171,6 +177,10 @@ class AbstractSensor():
                              'Residuals [all, {0:.0f} modes] = '.format(nb_modes)+\
                              '[{0:.0f}, {1:.0f}]'.\
                              format(rms_res_all, rms_res_all_filt))
+            self.logger.info(color +'#{0} : '.format(self.iter)+ Fore.RESET + \
+                             'Residuals no delay [all, {0:.0f} modes] = '.format(nb_modes)+\
+                             '[{0:.0f}, {1:.0f}]'.\
+                             format(rms_res_all_no_delay, rms_res_all_filt_no_delay))
             # self.logger.info(color +'#{0} :'+ Fore.RESET + 'Residuals [QS, QS+WV] = [{1:.0f}, {2:.0f}]'.\
             #                  format(self.iter, rms_res_qs, rms_res_all))
             # self.logger.info(color +'#{0} :'+ Fore.RESET + ' Residuals on {1:.0f} modes [QS, QS+WV] = [{1:.0f}, {2:.0f}]'.\
@@ -277,10 +287,13 @@ class AbstractSensor():
                            interval=inter, ax=ax2)
         #--
         # ax3 = plt.subplot(143, label='wfs')
-        _dim = self.inst.pupilGrid.shape[0]
-        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
-                           self.inst.aperture.shaped,
-                           interval=inter, ax=ax3)
+        # _dim = self.inst.pupilGrid.shape[0]
+        im3, _=imshow_norm(-self.inst.phase_ncpa_correction.shaped * \
+                    self.inst.aperture.shaped,
+                    interval=inter, ax=ax3)
+        # im3, _=imshow_norm(-self.inst.phase_ncpa_correction.reshape((_dim, _dim)) * \
+        #                    self.inst.aperture.shaped,
+        #                    interval=inter, ax=ax3)
         # im3, _=imshow_norm(self._wavefront.shaped * \
         #                    self.inst.aperture.shaped,
         #                    interval=inter, ax=ax3)

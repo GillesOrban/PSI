@@ -198,6 +198,7 @@ class Parameters(object):
                 raise ConfigurationError('Pupil does not exist')
         elif self.params.instrument == 'CompassSimInstrument':
             self.params.tel_diam = 40
+            self.params.pupil = 'ELT'
 
 
     def compute_parameters(self):

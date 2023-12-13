@@ -229,8 +229,9 @@ class DeepSensor(AbstractSensor):
         # TODO replace psi_framerate by kernel_framerate
         nbOfSeconds = 1/self.cfg.params.psi_framerate
         science_images_buffer = self.inst.grabScienceImages(nbOfSeconds)
-   
         self.science_image = science_images_buffer.mean(0)
+        self.inst.synchronizeBuffers(None, None)
+
 
         self._modes = self.evaluator.infer(self.science_image[np.newaxis,:,:]).squeeze()[:self.C2M.shape[0]]
 

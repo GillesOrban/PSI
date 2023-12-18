@@ -386,9 +386,12 @@ class KernelSensor(AbstractSensor):
         # binary_aperture[self.inst.aperture < 0.5] = 0
         if reortho:
             if self.cfg.params.pupil == 'ELT':
-                aper = hcipy.aperture.make_circular_aperture(0.98)(self.inst.pupilGrid)
-                aper -= hcipy.aperture.make_circular_aperture(0.25)(self.inst.pupilGrid)
-                aper *= self.inst._asym_mask(self.inst.pupilGrid)
+                grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
+                aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
+                aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
+                # aper *= self.inst._asym_mask(self.inst.pupilGrid)
+                tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
+                aper *= self.inst._asym_mask(tmpGrid)
             else:
                 aper = self.inst.aperture
             self.M2C_large = psi_utils.reorthonormalize(self.M2C_large,

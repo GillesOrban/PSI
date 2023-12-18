@@ -384,6 +384,7 @@ class CompassSimInstrument(GenericInstrument):
                                self.aperture, rotate=True)
         self.phase_wv *= self.wv_scaling
         self.phase_wv_integrated = self.phase_wv
+        self.phase_wv_buffer = self.phase_wv[np.newaxis,:]   # 18-12-2023: test
         # folder_wv = '/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/WaterVapour/phases/'
         # file_wv = "cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVLonly_qacits.fits"
         # wave_vapour_cube = fits.getdata(os.path.join(folder_wv, file_wv)) * \
@@ -402,6 +403,10 @@ class CompassSimInstrument(GenericInstrument):
                                    self.aperture, rotate=True)
             self.phase_wv *= self.wv_scaling
             self._wv_index += 1
+            self.phase_wv_buffer = np.append(self.phase_wv_buffer,
+                                             self.phase_wv[np.newaxis, :],
+                                             axis=0)
+
 
 
 
@@ -422,6 +427,7 @@ class CompassSimInstrument(GenericInstrument):
         '''
         self.nbOfSciImages = int(nbOfPastSeconds / self.sci_exptime)
         assert self.nbOfSciImages <= nbOfPastSeconds / self.sci_exptime
+        assert self.nbOfSciImages >= 1
         if not(np.isclose(self.nbOfSciImages, nbOfPastSeconds/self.sci_exptime)):
             self.logger.warn('Requested buffer duration is not an integer number of Science DIT')
 
@@ -435,12 +441,14 @@ class CompassSimInstrument(GenericInstrument):
 
         if self.include_water_vapour :
             self.phase_wv_integrated = 0
+            self.phase_wv_buffer = 0*self.phase_wv[np.newaxis,:]
             self.nb_wv_integrated = 0
         for i in range(self.nbOfSciImages):
             image_buffer[i] = self._grabOneScienceImage(bandwidth=self.bandwidth, **kwargs)
 
         if self.include_water_vapour :
             self.phase_wv_integrated /= self.nb_wv_integrated
+            self.phase_wv_buffer=self.phase_wv_buffer[1:]
 
         self._end_time_sci_buffer = np.copy(self._end_time_last_sci_dit)
         return image_buffer

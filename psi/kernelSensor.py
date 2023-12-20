@@ -415,16 +415,17 @@ class KernelSensor(AbstractSensor):
 
     #     return ncpa_estimate, ncpa_modes
 
-    def _projectOnModalBasis(self, ncpa_estimate, proj_mask):
+    def _projectOnModalBasis(self, ncpa_estimate, proj_mask, modal_gains=1):
         '''
             TODO: clarify method naming
         '''
         ncpa_modes      = self.C2M_small.dot(ncpa_estimate.flatten() * proj_mask.flatten())
-        ncpa_estimate  = self.M2C_matrix_large.dot(ncpa_modes)
+        ncpa_estimate  = self.M2C_matrix_large.dot(modal_gains * ncpa_modes)
 
         return ncpa_estimate, ncpa_modes
 
-    def next(self, display=True, check=False, leak=1, gains=[None,None], integrator=True):
+    def next(self, display=True, check=False, leak=1, gains=[None,None],
+             integrator=True, modal_gains=1):
         # TODO replace psi_framerate by kernel_framerate
         nbOfSeconds = 1/self.cfg.params.framerate
         science_images_buffer = self.inst.grabScienceImages(nbOfSeconds)
@@ -433,7 +434,9 @@ class KernelSensor(AbstractSensor):
         self.inst.synchronizeBuffers(None, None)
 
         self.computeWavefront(self.science_image * self.filter_fp)
-        self._ncpa_estimate, _ = self._projectOnModalBasis(self.wavefront, self._small_aperture)
+        self._ncpa_estimate, _ = self._projectOnModalBasis(self.wavefront,
+                                                           self._small_aperture,
+                                                           modal_gains)
         # Remove piston
         self._ncpa_estimate -= np.mean((self._ncpa_estimate * 
                                        self.inst.aperture)[self.inst.aperture !=0])

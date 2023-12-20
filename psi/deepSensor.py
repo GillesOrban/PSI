@@ -220,7 +220,7 @@ class DeepSensor(AbstractSensor):
             self.logger.warning('{0} not the same [{1}, {2}]'.format(kkey, a, b))
 
     def next(self, leak=1, gains=[None, None], integrator=True,
-             display=True, save_video=False):
+             display=True, save_video=False, modal_gains=1):
         '''
         PARAMETERS
         gains   : list
@@ -235,7 +235,7 @@ class DeepSensor(AbstractSensor):
 
         self._modes = self.evaluator.infer(self.science_image[np.newaxis,:,:]).squeeze()[:self.C2M.shape[0]]
 
-        self._wavefront = self.M2C.dot(self._modes) * 2 * np.pi / self._wavelength
+        self._wavefront = self.M2C.dot(modal_gains * self._modes) * 2 * np.pi / self._wavelength
         # _dim = self.inst.pupilGrid.shape[0]
         # self._wavefront = np.reshape(_wavefront, (_dim, _dim))
         if gains == [None, None]:

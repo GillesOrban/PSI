@@ -3,6 +3,44 @@ import hcipy
 import aotools
 from astropy.modeling import models
 
+def makeModalBasis(pupilGrid, nbOfModes,
+                   nmode_shift=3, reortho=True,
+                   aperture=None,
+                   basis_name='zern'):
+    '''
+    TODO implement Gendrinou basis, DH, etc.
+    
+    PARAMETERS
+    -----------
+    pupilGrid   : hcipy grid
+
+    nbOfModes   :   int
+        number of modes in the basis
+    nmode_shift :   int
+        index of the first mode
+    reortho     :   bool
+        apply reorthonormalization on the given aperture
+    aperture    : hcipy Field
+        aperture used for reorthonormalization
+    basis_name  : str
+        name of the basis. Default: 'zern'
+    '''
+    assert basis_name=='zern'
+
+    diam=1
+    radial_cutoff=False
+    M2C_basis = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
+                                   pupilGrid, 1,
+                                   radial_cutoff=radial_cutoff)    
+    if reortho:
+        M2C_basis = reorthonormalize(M2C_basis, aperture)
+    
+    M2C = M2C_basis.transformation_matrix[:, nmode_shift:]
+    C2M =hcipy.inverse_tikhonov(M2C_basis.transformation_matrix,
+                                1e-3)[nmode_shift:,:]
+    
+    return M2C, C2M
+
 def reorthonormalize(modal_basis, aperture, rcond=1e-15):
     # modal_basis.transformation_matrix can contain NaN in some cases...
     #   hopefully there should be masked by the aperture

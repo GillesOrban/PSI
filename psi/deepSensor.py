@@ -85,20 +85,27 @@ class DeepSensor(AbstractSensor):
             self.logger.info('Results will be stored in '
                              '{0}'.format(self._directory))
 
-    def _initModalBasis(self, nbOfModes=20):
+    def _initModalBasis(self, nbOfModes=20, nmode_shift=3, reortho=True):
         self.logger.info('Initializing modal basis with {0} modes'.format(nbOfModes))
-        diam = 1
-        radial_cutoff = False
-        nmode_shift = 3
-        self.M2C = hcipy.make_zernike_basis(nbOfModes + nmode_shift, diam,
-                                            self.inst.pupilGrid, 1,
-                                            radial_cutoff=radial_cutoff)
-
-        self.M2C_basis = psi_utils.reorthonormalize(self.M2C,
-                                              self.inst.aperture)
-        self.M2C = self.M2C_basis.transformation_matrix[:, nmode_shift:]
-        self.C2M =hcipy.inverse_tikhonov(self.M2C_basis.transformation_matrix,
-                                         1e-3)[nmode_shift:,:]
+        
+        aper=None
+        if reortho:
+            if self.cfg.params.pupil == 'ELT':
+                grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
+                aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
+                aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
+                tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
+                aper *= self.inst._asym_mask(tmpGrid)
+            else:
+                aper = self.inst.aperture
+        M2C, C2M = psi_utils.makeModalBasis(self.inst.pupilGrid,
+                                            nbOfModes,
+                                            nmode_shift,
+                                            reortho=reortho,
+                                            aperture=aper,
+                                            basis_name='zern')
+        self.M2C = M2C
+        self.C2M = C2M
 
 
     def buildModel(self, tag_name,

@@ -166,7 +166,9 @@ class AbstractSensor():
                                          axis=1,
                                          where=pup>=0.5)) * conv2nm
             lyot_rms_res_qs = np.std(res_ncpa_qs[pup>=0.5]) * conv2nm
-            lyot_rms_res_all = np.std(res_ncpa_all[pup>=0.5]) * conv2nm
+            # lyot_rms_res_all = np.std(res_ncpa_all[pup>=0.5]) * conv2nm
+            lyot_rms_res_all = np.mean(np.std(res_ncpa_all,axis=1,
+                                     where=pup>=0.5)) * conv2nm
 
             tmp, _ = self._modal_filtering_on_pupil(self.inst.phase_wv_buffer)
             lyot_rms_wv_filt = np.mean(np.std(tmp, axis=1, where=pup>=0.5)) * conv2nm

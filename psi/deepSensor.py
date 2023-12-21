@@ -226,8 +226,7 @@ class DeepSensor(AbstractSensor):
         gains   : list
             gain_I and gain_P. If not [None, None], will use the given values instead of the config ones.
         '''
-        # TODO replace psi_framerate by kernel_framerate
-        nbOfSeconds = 1/self.cfg.params.psi_framerate
+        nbOfSeconds = 1/self.cfg.params.framerate
         science_images_buffer = self.inst.grabScienceImages(nbOfSeconds)
         self.science_image = science_images_buffer.mean(0)
         self.inst.synchronizeBuffers(None, None)

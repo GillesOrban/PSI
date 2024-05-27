@@ -114,8 +114,12 @@ def splitDataLoader(dataset, conf, device, split=[0.9, 0.1],
     return train_dataloader, val_dataloader
 
 
-def normalization(dataset, data_info):
-    transfo_list = [custom_transforms.Normalize()]
+def normalization(dataset, data_info, noise=0, signal=1, bckg=0):
+    if noise == 0:
+        transfo_list = [custom_transforms.Normalize()]
+    else:
+        transfo_list = [custom_transforms.Noise(signal, bckg),
+                        custom_transforms.Normalize()]
     dataset_norm = psf_dataset(dataset=dataset,
                                data_info=data_info,
                                transform=transforms.Compose(transfo_list))

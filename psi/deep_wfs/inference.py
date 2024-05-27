@@ -57,7 +57,7 @@ class dataInfer:
             self.logger.warning('Warning: data info incomplete, setting wavelength from config')
             self.data_info['wavelength'] = 1
 
-    def infer(self, psfs, conf_file=None):
+    def infer(self, psfs, conf_file=None, **kwargs):
         '''
         PARAMETERS
         ----------
@@ -82,7 +82,7 @@ class dataInfer:
         
         # Inference
         dataset_input = {"psfs_1": psfs}
-        dataset_normalized = normalization(dataset_input, _data_info)
+        dataset_normalized = normalization(dataset_input, _data_info, **kwargs)
 
         zernike_predicted = torch.zeros((_data_info['nb_samples'],
                                          _data_info['nb_modes']))

@@ -1,6 +1,8 @@
 dataset_path: "/mnt/disk12tb/METIS/PSI/datasets/"  # GOX : path to dataset, not file name
-phasescreen_fname: "/mnt/disk12tb/METIS/PSI/WV_screens/cube_285_300nm.fits"
-nb_samples: 10000
+# phasescreen_fname: "/mnt/disk12tb/METIS/PSI/WV_screens/cube_285_300nm_1e5.fits"
+phasescreen_fname: "/mnt/disk12tb/METIS/PSI/WV_screens/cube_285_1e5_L0=500m_noTT_200nm.fits"
+nb_samples: 100000
+noisy: False  # Generate noisy data ?
 
 # The following attributes are added at setup of generator
 # wavelength

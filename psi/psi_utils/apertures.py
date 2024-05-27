@@ -52,7 +52,7 @@ def mask_asym_two_lyot(width):
     '''
 
     def func(grid):
-        rad = 0.325
+        rad = 0.25 #0.325
         angle = np.deg2rad(60)
         pos1 = (-rad, 0)
         pos2 = (-np.cos(angle) * rad, -np.sin(angle) * rad)

@@ -22,3 +22,26 @@ class Normalize(object):
         else:
             array_norm = torch.zeros(array.shape)
         return array_norm
+
+
+class Noise(object):
+    def __init__(self, signal, bckg):
+        self.signal = signal
+        self.bckg = bckg
+
+    def __call__(self, sample):
+        assert len(sample['image'].shape) == 3
+
+        for i in range(sample['image'].shape[0]):
+            image = sample['image'][i]
+            norm = torch.sum(image)
+            if self.bckg == 0 :
+                noisy_image = torch.poisson(image / norm * self.signal)
+            else:
+                # print('[debug] : adding background')
+                background = torch.as_tensor(self.bckg)
+                background_noise = torch.poisson(background + image*0) - background
+                noisy_image = torch.poisson(image / norm * self.signal) + background_noise
+            sample['image'][i] = noisy_image
+        
+        return sample

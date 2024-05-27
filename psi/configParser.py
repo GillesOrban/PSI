@@ -113,6 +113,7 @@ class Parameters(object):
             self.params.telescope_diameter = 36.905
         if not(hasattr(self.params, 'pscale')):
             # default pixel scale given by METIS_L
+            self.logger.warn('No pxscale available. Setting pixel scale to default METIS_L.')
             self.params.pscale = 5.47
         if not(hasattr(self.params, 'det_res')):
             self.params.det_res = None
@@ -121,19 +122,23 @@ class Parameters(object):
         # check, based on the band, that the zeropoint is according to defined 'constants'
         #  otherwise print a 'warning'
         if self.params.inst_mode == 'CVC':
-            # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_L':
-                self.logger.warn(('Lyot stop fname does not seem to match for {0}'
-                             'Please check the filename').format(self.params.inst_mode))
+            if self.params.band == 'METIS_L':
+                if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_L':
+                    self.logger.warn(('Lyot stop fname does not seem to match for {0}'
+                                ' Please check the filename {1}').format(self.params.inst_mode, self.params.f_lyot_stop))
+            elif self.params.band == 'METIS_N2':
+                if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_CVC_N2':
+                    self.logger.warn(('Lyot stop fname does not seem to match for {0}'
+                                ' Please check the filename {1}').format(self.params.inst_mode, self.params.f_lyot_stop))
             # if self.params.band == 'N':
             #     if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_CVC_N':
             #         self.logger(('Lyot stop fname does not seem to match for {0}.'
             #                      ' Please check the filename').format(self.params.inst_mode))
         elif self.params.inst_mode == 'RAVC':
             # if self.params.band == 'L':
-            if os.path.basename(self.params.f_lyot_stop)[0:9] != 'ls_RAVC':
-                self.logger.warn(('Lyot stop fname does not seem to match for {0}'
-                             '  Please check the filename').format(self.params.inst_mode))
+            if os.path.basename(self.params.f_lyot_stop)[0:7] != 'ls_RAVC':
+                self.logger.warn(('Lyot stop fname does not seem to match for {0} '
+                             '  Please check the filename {1}').format(self.params.inst_mode, self.params.f_lyot_stop))
 
             # if self.params.band == 'N':
             #     if os.path.basename(self.params.f_lyot_stop)[0:8] != 'ls_RAVC_N':
@@ -185,6 +190,8 @@ class Parameters(object):
 
         if hasattr(self.params, 'bandwidth') is False:
             self.params.bandwidth = 0
+        if hasattr(self.params, 'bandwidth_npts') is False:
+            self.params.bandwidth_npts = 11
 
 
         if self.params.instrument == 'HcipySimInstrument':

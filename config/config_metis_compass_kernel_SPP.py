@@ -5,14 +5,12 @@ from types import SimpleNamespace
 
 # def read_config(verbose=False, **update_conf):
 _tmp_dir = os.path.dirname(__file__) + '/../data/'
-_dir_ml = os.path.dirname(__file__) + '/../psi/deep_wfs/'
-
 
 conf = dict(
     # number of pixels of the pupil
     npupil=256,
     # size of the detector plane array [lam/D]
-    det_size=5,
+    det_size=15,
 
     # --- Which type of instrument to use --
     # Must be a class present in ``instruments.py``
@@ -26,15 +24,18 @@ conf = dict(
     #    'CVC'  for Classical Vortex Coronagraph
     #    'RAVC' for Ring Apodized Vortex Coronagraph
     #    WIP : 3. mode = 'APP'  for Apodizing Phase Plate
-    inst_mode='CVC',
+    inst_mode='SPP',
     # Vortex topological charge ('CVC' and 'RAVC')
     vc_charge=2,                      # (CVC and RAVC only) vortex topological charge
     # Vector or scalar vortex ('CVC' and 'RAVC')
-    # TODO [PSI] implement full support for vector vortex mode
-    vc_vector=True,
+    # TODO support vector vortex mode
+    vc_vector=False,
 
     # Filename for the entrance (aperture) pupil
     f_aperture=_tmp_dir + 'pupil/ELT_fullM1.fits',
+    # f_aperture=_tmp_dir + 'pupil/int_APP_IMG_stop_HR_IMG_2335_dRext=0.0209_dRint=0.0209_dRspi=0.0291.fits',
+    # f_aperture=_tmp_dir + 'pupil/SP_AP2_rot.fits',
+
     # TODO Add parameters to create aperture if no file is given
 
     # Filename for the Lyot stop ('CVC' or 'RAVC')
@@ -51,13 +52,14 @@ conf = dict(
     #     f_lyot_stop = _tmp_dir+'pupil/ls_CVC_L_285_dRext=0.0209_dRint=0.09_dRspi=0.0245.fits',
     # '''
     # f_lyot_stop=_tmp_dir+'pupil/ls_CVC_N2_119_dRext=0.0268_dRint=0.09_dRspi=0.0357.fits',
-    f_lyot_stop=_tmp_dir+'pupil/ls_CVC_N2_1385_dRext=0.0268_dRint=0.09_dRspi=0.0357.fits',
 
     # RAVC LS L-band:
-#     f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
+    f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
 
     # Filename for the entrance apodization ('RAVC' and 'APP'?)
-#     f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
+    # f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
+    #       -- SPP apodizer
+    f_apodizer=_tmp_dir + 'pupil/SP_AP2_rot.fits',
 
     # ======
     #    Photometry
@@ -72,13 +74,12 @@ conf = dict(
     #   Baseline for METIS: 'METIS_L' and 'METIS_N2'
     #   Alternatively if 'band' is not define, the following parameter should be passed
     #   'wavelength', 'flux_zpt', 'flux_bckg'
-    band='METIS_N2',
+    band='METIS_L',
 
     # star magnitude at selected band
-    mag=0,
+    mag=4,
     # Polychromatic bandwidth
-    bandwidth=0.,
-    bandwidth_npts=5,
+    bandwidth=0.07,
     # science detector integration time [s]
     dit=0.1,
 
@@ -95,18 +96,18 @@ conf = dict(
     # Generic FP Sensor parameters
     # ========
     # Number of modes sensed and corrected.
-    nb_modes = 20,      # (generic `psi_nb_modes`)
+    nb_modes = 20,      # (generic `psi_nb_modes`
     # Number of iteration. Total duration is nb_iter / framerate
-    nb_iter = 600,      # (generic `nb_iter`)
+    nb_iter = 600,      # (generic `nb_iter`
      # [Hz] framerate of the sensing & correction
-    framerate = 10,     # (generic `psi_framerate`)
+    framerate = 10,     # (generic `psi_framerate`
 
     # modal basis: zern, dh, gendrinou
     modal_basis = 'zern',
 
     # Control gains
-    gain_I=1, #0.45, #0.2 for IMG # Integrator gain
-    gain_P=0, #0.45, #0.1 for IMG # Proportional gain
+    gain_I=0.9, #0.2 for IMG # Integrator gain
+    gain_P=0.0, #0.1 for IMG # Proportional gain
 
     # Saving results
     save_loop_statistics=False,
@@ -114,35 +115,32 @@ conf = dict(
     save_basedir='/home/gorban/', #'/Users/orban/Projects/METIS/4.PSI/psi_results/',
     save_dirname=None,  # TODO: explain difference with save_basedir
 
-    # ========
-    #  ASYMMETRIC STOP: DL and Kernel
-    #   asymmetric pupil stop if inst_mode == IMG
-    #   asymmetric Lyot stop if inst_mode == CVC or RAVC
-    #   * Deep Learning Sensor *
-    #       the DL sensor follows a specific workflow with data generation - training - inference
-    #       which calls for specific configuration files.
-    #   * Kernel algorithm *
-    #       specific parameter for the discretization of the pupil plane
-    #       Only works with inst_mode == IMG
-    # ========
-    f_generator = _dir_ml + '/config/' + 'generator_config.yml',
-    f_inference = _dir_ml + '/config/' + 'inference_config.yml',  
-    f_training  = _dir_ml + '/config/' + 'training_config.yml',
-
+    # =========
+    #  Kernel algorithm
+    # =========
     asym_stop=True,
     asym_angle=180,                   # [optional]
-    asym_width=0.20,                  # [optional]
-    asym_mask_option= 'two_lyot', #'two_spiders',
-    asym_model_fname=None, #toto.fits.gz',              # [optional]
-
+    asym_width=0, #0.1,                  # [optional]
+    # Asymmetric mask configuration. 
+    # Currently implemented: 'one_spider', 'two_spiders', 'two_lyot'
+    asym_mask_option='two_spiders',
+    asym_model_fname=None,               # [optional]
     # nb of steps along the pupil diameter
     asym_nsteps=33,
     # transmission min
     asym_tmin=0.5,
 
-    # =========
-    #  Phase Sorting Interferometry
-    # =========
+    # asym_stop = False,
+    # asym_angle = 0,                   # [optional]
+    # asym_width = 0.15,                  # [optional]
+    # asym_model_fname = None, #toto.fits.gz',              # [optional]
+    # # asym_telDiam = 40,
+    # asym_nsteps=33, # nb of steps along the pupil diameter
+    # asym_tmin=0.5, # transmission min
+
+    # # =========
+    # #  PSI
+    # # =========
     # # [Hz] framerate of the psi correction
     # psi_framerate=10,
     # # number of iterations.
@@ -165,57 +163,62 @@ conf = dict(
 
     # # Focal plane filtering sigma (Gaussian blurring)
     # #   and radius [lambda / D]
-    # psi_filt_sigma=0.05,
-    # psi_filt_radius=5,
+    psi_filt_sigma=0.05,
+    psi_filt_radius=10,
 
     # # PSI scaling if do not want to use 'auto scaling'
     # #   default is None, otherwise expected NCPA in [nm]
-    # ncpa_expected_rms=None,     # 100, # 50, #250,        
+    # ncpa_expected_rms=None,     # 100, # 50, #250,  
 
     # check_psi_convergence=False,
+
+
     # ============
     #   NCPA
     #       Only in simulation (CompassSimInstrument and HcipySimInstrument)
     # ============
-    ncpa_dynamic=False,
+    ncpa_dynamic=True,
     ncpa_sampling=100,             # [s] Dyn NCPA sampling
-    ncpa_scaling=0,               # scaling factor, if want to increase level
+    ncpa_scaling=1,               # scaling factor, if want to increase level
 
-    ncpa_folder=('/Users/orban/Projects/METIS/4.PSI/'
-                 'legacy_TestArea/NCPA_Tibor/'),
+    ncpa_folder=('/mnt/disk12tb/METIS/PSI/legacy/TestArea/NCPA_Tibor/'),
     ncpa_prefix="DIFF_rep_1_field_",  # NB assumes units are in mm
 
     # =============
     #   Residual turbulence
     #       Only in simulation with CompassSimInstrument (offline)
-    turb_folder=('/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/'
-                 'COMPASSPhaseScreens/ThirdAttempt_Processed/'),
+    turb_folder=('/mnt/disk12tb/METIS/PSI/legacy/TestArea/COMPASSPhaseScreens/ThirdAttempt_Processed/'),
     turb_prefix_rp='Residual_phase_screen_',      # NB: assumes units are in µm
     turb_prefix_wf='Reconstructed_wavefront_',    # NB: assumes units are in µm
     turb_suffix='ms_256.fits',
+
 
     # =============
     #   Water vapour seeing
     # Include water vapour seeing (bool)
     wv=True,
-    wv_folder=('/Users/orban/Projects/METIS/4.PSI/legacy_TestArea/'
-               'WaterVapour/phases/'),
+    wv_folder=('/mnt/disk12tb/METIS/PSI/legacy/TestArea/WaterVapour/phases/'),
     # WV filename (cube of phase screen)
     #   different for METIS_L and METIS_N2
     #   NB assume units are in meters
-    wv_cubename=('cube_Cbasic_20210504_600s_100ms_0piston_meters_'
-                 'scao_only_285_WVNonly_qacits.fits'),
-    # wv_cubename = ('cube_Cbasic_20210504_600s_100ms_0piston_meters_'
-    #                'scao_only_285_WVLonly_qacits.fits'),
+    # wv_cubename=('cube_Cbasic_20210504_600s_100ms_0piston_meters_'
+    #              'scao_only_285_WVNonly_qacits.fits'),
+    wv_cubename = ('cube_Cbasic_20210504_600s_100ms_0piston_meters_'
+                   'scao_only_285_WVLonly_qacits.fits'),
     
     # [ms] sampling of the cube
     wv_sampling=100,
     # Scale factor, if want to change the level of WV
     wv_scaling=1,
 
+    # # =============
+    # # Saving results
+    # save_loop_statistics=True,
+    # save_phase_screens=False,
+    # save_basedir='/Users/orban/Projects/METIS/4.PSI/psi_results/',
+    # save_dirname=None,
 
-
-
+    # check_psi_convergence=False,
 
 )
     # sort alphabetically

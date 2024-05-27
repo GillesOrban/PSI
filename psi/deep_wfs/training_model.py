@@ -36,9 +36,17 @@ class dataTrain:
         self.logger.info('Setting TensorBoard log dir to {0}'.format(dd))
         self._tb_writer = SummaryWriter(dd)
 
-    def trainModel(self, showTrainingCurve=False, useTensorBoard=True, nbModes=None):
+    def trainModel(self, showTrainingCurve=False, useTensorBoard=True, nbModes=None,
+                   noise=0, signal=1, bckg=0):
         '''
         setup/setConfig needs to be called before
+
+        PARAMETERS:
+        noise   : int
+            0 no noise
+            1 photon noise only
+            2 photon noise + background
+
         '''
         # Reading information about the data (hdf5 attributes):
         self.data_info = {}
@@ -58,16 +66,18 @@ class dataTrain:
 
         # Specify the device used (gpu or cpu):
         # if no GPU available goes to local machine (cpu)
-        self.train_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        idx = np.random.randint(2)   # randomize use of GPU
+        self.train_device = torch.device("cuda:{0}".format(idx) if torch.cuda.is_available() else "cpu")
         if torch.cuda.is_available():
-            self.logger.info("Training on GPU")
+            self.logger.info("Training on GPU #{0}".format(idx))
             self.logger.info(f"Number of GPUs available:{str(torch.cuda.device_count())}")
             self.logger.info(f"GPU name: {str(torch.cuda.get_device_name(0))}")
         else:
             self.logger.info(f"Training on CPU")
 
         # Setting the DataLoaders:
-        dataset_pp = normalization(self.dataset_master, self.data_info)
+        dataset_pp = normalization(self.dataset_master, self.data_info,
+                                   noise=noise, signal=signal, bckg=bckg)
         self.generateDataLoaders(dataset_pp)
 
         # TODO: Loading the weights of the model if specified
@@ -89,8 +99,9 @@ class dataTrain:
             # [...] see here : https://pytorch.org/tutorials/intermediate/tensorboard_tutorial.html
 
         # Moving the model to GPU(s) if possible:
-        if torch.cuda.device_count() > 1:
-            self.model_to_train = torch.nn.DataParallel(self.model_to_train)
+        # if torch.cuda.device_count() > 1:
+        #     self.model_to_train = torch.nn.DataParallel(self.model_to_train)
+        # -> training on single GPI (28/03/2024)
         self.model_to_train.to(self.train_device)
 
         # Defining the loss function:

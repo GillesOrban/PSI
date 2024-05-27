@@ -206,10 +206,21 @@ class CompassSimInstrument(GenericInstrument):
                                  format(100 - self._pupil_transmission *100))
 
 
-        if self._inst_mode == 'RAVC' : #or self._inst_mode == 'APP':
+        if self._inst_mode == 'RAVC' or self._inst_mode == 'SPP': #or self._inst_mode == 'APP':
             self.pupil_apodizer = psi_utils.make_COMPASS_aperture(conf.f_apodizer,
                                                             npupil=self._size_pupil_grid,
                                                             rot90=True)(self.pupilGrid)
+            '''
+                Because many dependencies (kernel, abstract sensor, ...) depends on 'aperture',
+                I multiply the aperture by the apodizer (even if it is taken into account in the optical model)
+                and compute the mask transmission to take that into account in the photometry.
+
+                Apply this to both the RAP and SPP
+            '''
+            full_transmission = np.sum(self.aperture)
+            self.aperture *= self.pupil_apodizer
+            new_transmission = np.sum(self.aperture)
+            self._pupil_transmission = new_transmission / full_transmission
 
         # if self._inst_mode != 'IMG' and self._asym_stop:
         #     spider_gen = hcipy.make_spider_infinite((0,0),
@@ -219,12 +230,14 @@ class CompassSimInstrument(GenericInstrument):
         #     self.lyot_stop_mask *= asym_arm
 
         self.noise = conf.noise
+        self.bckg_level = 0
         # if self.noise == 1:
         #     pass
         if self.noise == 2:
             self.bckg_level = conf.num_photons_bkg * self._pupil_transmission
         self.num_photons = conf.num_photons * self._pupil_transmission
         self.bandwidth = conf.bandwidth
+        self.bandwidth_npts = conf.bandwidth_npts
 
         # by default include residual turbulence phase screens
         self.include_residual_turbulence = True
@@ -330,8 +343,13 @@ class CompassSimInstrument(GenericInstrument):
                                                       self._lyot_stop_element,
                                                       self._prop])
 
-        elif self._inst_mode == 'APP':
-            self.logger.warning('APP not supported')
+        elif self._inst_mode == 'APP' or self._inst_mode=='SPP':
+            self.logger.warning('APP & SPP in development...')
+            self.logger.info('Building a simple imager in HCIPy')
+            self._apodizer = hcipy.Apodizer(self.pupil_apodizer)
+
+            self.optical_model = hcipy.OpticalSystem([self._apodizer,
+                                                      self._prop])
 
         # # lyot_stop_mask = hcipy.make_obstructed_circular_aperture(0.98, 0.3)(pupil_grid)
         # # lyot_stop_mask = hp.evaluate_supersampled(hp.circular_aperture(0.95), pupil_grid, 4)
@@ -444,7 +462,9 @@ class CompassSimInstrument(GenericInstrument):
             self.phase_wv_buffer = 0*self.phase_wv[np.newaxis,:]
             self.nb_wv_integrated = 0
         for i in range(self.nbOfSciImages):
-            image_buffer[i] = self._grabOneScienceImage(bandwidth=self.bandwidth, **kwargs)
+            image_buffer[i] = self._grabOneScienceImage(bandwidth=self.bandwidth,
+                                                        npts=self.bandwidth_npts,
+                                                        **kwargs)
 
         if self.include_water_vapour :
             self.phase_wv_integrated /= self.nb_wv_integrated
@@ -982,6 +1002,7 @@ class HcipySimInstrument(GenericInstrument):
             self.bckg_level = conf.num_photons_bkg
         self.num_photons = conf.num_photons
         self.bandwidth = conf.bandwidth
+        self.bandwidth_npts = conf.bandwidth_npts
 
         self._setup_modal_basis()
         
@@ -1348,6 +1369,7 @@ class HcipySimInstrument(GenericInstrument):
         image_buffer = np.zeros((self.nbOfSciImages, nx, ny))
         for i in range(self.nbOfSciImages):
             image_buffer[i] = self._grabOneScienceImage(bandwidth=self.bandwidth,
+                                                        npts=self.bandwidth_npts
                                                         **kwargs)
 
         # Various handling

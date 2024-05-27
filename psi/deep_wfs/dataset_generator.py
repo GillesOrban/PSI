@@ -41,6 +41,9 @@ class dataGen():
             extra = {**extra, **sensor_config}
 
         self.setConfig(conf_file, extra_config=extra)
+        if self.config['noisy'] == False:
+            self.logger.info('Setting inst noise to zero for data generation')
+            self._inst.noise = 0
 
 
     def setConfig(self, conf_file=None, extra_config=None):

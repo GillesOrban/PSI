@@ -97,7 +97,7 @@ class AbstractSensor():
         wf_filtered = self._M2C.dot(modes).T
         return wf_filtered, modes
 
-    def evaluateSensorEstimate(self, verbose=True, static=False, db_logger=None):
+    def evaluateSensorEstimate(self, verbose=True, static=False, db_logger=None, aperture=None):
         '''
         Compute the rms errors made on quasi-static NCPA and on water vapour seeing.
 
@@ -111,11 +111,15 @@ class AbstractSensor():
         #     self.inst.phase_ncpa_correction
         res_ncpa_all = self.inst.phase_ncpa + self.inst.phase_wv_buffer + \
             self.inst.phase_ncpa_correction        
+        
         # Measurement error: not taking the delay into account
         # res_ncpa_all_no_delay = self.inst.phase_ncpa + self.inst.phase_wv_integrated + \
         #     self.inst._next_phase_ncpa_correction
         res_ncpa_all_no_delay = self.inst.phase_ncpa + self.inst.phase_wv_buffer + \
             self.inst._next_phase_ncpa_correction
+        
+        if aperture is None:
+            aperture = self.inst.aperture
         
         if static:
             # Purely static residual aberrations (``double integration'')
@@ -126,38 +130,40 @@ class AbstractSensor():
                 res_static_ncpa_qs = self.inst.phase_ncpa + (self._ncpa_correction_long_term / self.iter)
 
             tmp, _ = self._modal_filtering_on_pupil(res_static_ncpa_qs)
-            rms_res_static_NCPA_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+            rms_res_static_NCPA_filt = np.std(tmp[aperture>=0.5]) * conv2nm
+
+
 
         # Compute rms WFE in nm
         conv2nm = self.inst.wavelength / (2 * np.pi) * 1e9
-        # rms_wv_integrated = np.std(self.inst.phase_wv_integrated[self.inst.aperture>=0.5]) * conv2nm
+        # rms_wv_integrated = np.std(self.inst.phase_wv_integrated[aperture>=0.5]) * conv2nm
         rms_wv = np.mean(np.std(self.inst.phase_wv_buffer,
                                      axis=1,
-                                     where=self.inst.aperture>=0.5)) * conv2nm
-        rms_res_qs = np.std(res_ncpa_qs[self.inst.aperture>=0.5]) * conv2nm
+                                     where=aperture>=0.5)) * conv2nm
+        rms_res_qs = np.std(res_ncpa_qs[aperture>=0.5]) * conv2nm
         rms_res_all = np.mean(np.std(res_ncpa_all,
                                      axis=1,
-                                     where=self.inst.aperture>=0.5)) * conv2nm
+                                     where=aperture>=0.5)) * conv2nm
         rms_res_all_no_delay = np.mean(np.std(res_ncpa_all_no_delay,
                                               axis=1,
-                                              where=self.inst.aperture>=0.5)) * conv2nm
+                                              where=aperture>=0.5)) * conv2nm
 
 
         # Modal filtering and recomputation of WFE
         # tmp, _ = self._modal_filtering_on_pupil(self.inst.phase_wv)
         # rms_wv_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
         tmp, _ = self._modal_filtering_on_pupil(self.inst.phase_wv_buffer)
-        rms_wv_filt = np.mean(np.std(tmp, axis=1, where=self.inst.aperture>=0.5)) * conv2nm 
+        rms_wv_filt = np.mean(np.std(tmp, axis=1, where=aperture>=0.5)) * conv2nm 
         tmp, _ = self._modal_filtering_on_pupil(self.inst.phase_ncpa_correction)
-        rms_correction_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+        rms_correction_filt = np.std(tmp[aperture>=0.5]) * conv2nm
 
         tmp, _ = self._modal_filtering_on_pupil(res_ncpa_qs)
-        rms_res_qs_filt = np.std(tmp[self.inst.aperture>=0.5]) * conv2nm
+        rms_res_qs_filt = np.std(tmp[aperture>=0.5]) * conv2nm
         tmp, _ = self._modal_filtering_on_pupil(res_ncpa_all)
-        rms_res_all_filt = np.mean(np.std(tmp, axis=1, where=self.inst.aperture>=0.5)) * conv2nm 
+        rms_res_all_filt = np.mean(np.std(tmp, axis=1, where=aperture>=0.5)) * conv2nm 
         
         tmp, _ = self._modal_filtering_on_pupil(res_ncpa_all_no_delay)
-        rms_res_all_filt_no_delay = np.mean(np.std(tmp, axis=1, where=self.inst.aperture>=0.5)) * conv2nm 
+        rms_res_all_filt_no_delay = np.mean(np.std(tmp, axis=1, where=aperture>=0.5)) * conv2nm 
 
         if self.inst._inst_mode in ['CVC', 'RAVC']:
             pup = self.inst.lyot_stop_mask
@@ -309,8 +315,12 @@ class AbstractSensor():
         #--
         # ax2 = plt.subplot(142, label='dist')
         phase = np.mean(self.inst.phase_wv_buffer + self.inst.phase_ncpa, axis=0)
+        # masked = np.ma.masked_where(self.inst.aperture.shaped < 0.1, phase.shaped)
+        # phase[self.inst.aperture < 0.1] = np.nan
         im2, _=imshow_norm(phase.shaped,
                            interval=inter, ax=ax2)
+        # masked = np.ma.masked_where(self.inst.aperture.shaped < 0.1, self.inst.aperture.shaped)
+        # ax2.imshow(masked)
         #--
         # ax3 = plt.subplot(143, label='wfs')
         # _dim = self.inst.pupilGrid.shape[0]

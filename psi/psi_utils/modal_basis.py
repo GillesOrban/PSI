@@ -25,13 +25,20 @@ def makeModalBasis(pupilGrid, nbOfModes,
     basis_name  : str
         name of the basis. Default: 'zern'
     '''
-    assert basis_name=='zern'
+    assert basis_name=='zern' or basis_name=='gendrinou'
 
     diam=1
     radial_cutoff=False
-    M2C_basis = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
-                                   pupilGrid, 1,
-                                   radial_cutoff=radial_cutoff)    
+    if basis_name is 'zern':
+        M2C_basis = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
+                                    pupilGrid, 1,
+                                    radial_cutoff=radial_cutoff)    
+    elif basis_name is 'gendrinou':
+        # nmode_shift = 2 # 2 means, will skip tip, tilt (no piston in the basis)
+        nAct = int(np.ceil(np.sqrt(nbOfModes * 2.5)))
+        _, M2C_basis = gendrinou_basis(pupilGrid, aperture,
+                                       nAct, nbOfModes+nmode_shift)
+
     if reortho:
         M2C_basis = reorthonormalize(M2C_basis, aperture)
     

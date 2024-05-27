@@ -10,7 +10,7 @@ import yaml
 
 # class readTools:
 
-def read_h5(filename=None, dataObj=None):
+def read_h5(filename=None, dataObj=None, attrs_only=False):
     if dataObj is not None:
         if dataObj.mode is None:
             raise ValueError('grabFrames() is not run yet on the data object')
@@ -22,8 +22,9 @@ def read_h5(filename=None, dataObj=None):
     with h5py.File(filename, 'r') as f:
         # cube = f['frame'][:]
         # zernikeCoeff = f['zernikeCoeff'][:]
-        for key in f.keys():
-            db[key] = f[key][:]
+        if attrs_only is False:
+            for key in f.keys():
+                db[key] = f[key][:]
         attrs = dict(f.attrs.items())
 
     # converting strings to actual values

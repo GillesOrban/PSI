@@ -52,6 +52,9 @@ class dataTrain:
         self.data_info = {}
         self.dataset_master = {}
         self.dataset_master, self.data_info = rt.read_h5(filename=self.config["training_data_fname"])
+        self.data_info["training_data_fname"] = self.config["training_data_fname"]
+        # if noise != 0:
+        #     self.
         if nbModes is not None:
             assert nbModes <= self.data_info['nb_modes']
             self.logger.info("Training model on {0}/{1} modes".format(nbModes, self.data_info['nb_modes']))

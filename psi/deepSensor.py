@@ -207,6 +207,7 @@ class DeepSensor(AbstractSensor):
             if not os.path.exists(model_path):
                 os.makedirs(model_path)
             
+            self.trainer.config['mag'] = self.cfg.params.mag
             num_photons = self.getFluxInFocalPlane() #self.inst.num_photons
             bckg_level = self.inst.bckg_level
             self.trainer.trainModel(nbModes = nb_modes,
@@ -248,7 +249,7 @@ class DeepSensor(AbstractSensor):
 
     def init_evaluator(self, model_fname=None):
         self.logger.info('Preparing for inference')
-        self.evaluator.setup(model_data_path=model_fname)
+        self.evaluator.setup(model_data_path=model_fname+'/')
         self._wavelength = self.evaluator.data_info['wavelength'] # required for consistency
 
         # 3.1 Check consistency between CNN config / data_info and the current sim config

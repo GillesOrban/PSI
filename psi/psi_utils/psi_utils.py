@@ -44,10 +44,33 @@ def crop_img(img, new_size, margin=0, verbose=False):
     return img
 
 
-def resize_img(img, new_size, preserve_range=True, mode='reflect',
+def resize_img(img, new_size,
+               preserve_range=True,
+               mode='reflect',
                anti_aliasing=True):
-    ''' Resize an image. Handles even and odd sizes.
-    '''
+    """
+    Resizes an image to a specified new size.
+
+    Parameters
+    ----------
+    img : numpy.ndarray
+        The input image to be resized. It can be a 2D frame or a 3D cube.
+    new_size : int or tuple/list of size 2
+        The new size of the image. If an integer is provided, the image will be resized to a square of that size.
+        if new_size is equal to img.shape, the image will not be resized.
+    preserve_range : bool, optional
+        Whether to preserve the range of the image values. Defaults to True.
+    mode : str, optional
+        The mode to use for resizing. Defaults to 'reflect'.
+    anti_aliasing : bool, optional
+        Whether to apply anti-aliasing during resizing. Defaults to True.
+
+    Returns
+    -------
+    numpy.ndarray
+        The resized image.
+    """
+
     requirement = "new_size must be an int or a tuple/list of size 2."
     assert type(new_size) in [int, tuple, list], requirement
     if type(new_size) is int:

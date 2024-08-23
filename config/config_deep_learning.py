@@ -57,7 +57,7 @@ conf = dict(
 #     f_lyot_stop = _tmp_dir + 'pupil/ls_RAVC_L_285_dRext=0.0477_dRint=0.04_dRspi=0.0249.fits',
 
     # Filename for the entrance apodization ('RAVC' and 'APP'?)
-#     f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
+    f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
 
     # ======
     #    Photometry
@@ -75,7 +75,7 @@ conf = dict(
     band='METIS_N2',
 
     # star magnitude at selected band
-    mag=0,
+    mag=-4,
     # Polychromatic bandwidth
     bandwidth=0.,
     bandwidth_npts=5,

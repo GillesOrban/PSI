@@ -74,9 +74,9 @@ conf = dict(
     # star magnitude at selected band
     mag=0,
     # Polychromatic bandwidth
-    bandwidth=0.2,
+    bandwidth=0.,
     # science detector integration time [s]
-    dit=0.1,
+    dit=1,
 
     # ======
     #  AO parameters
@@ -91,18 +91,18 @@ conf = dict(
     # Generic FP Sensor parameters
     # ========
     # Number of modes sensed and corrected.
-    nb_modes = 100,      # (generic `psi_nb_modes`
+    nb_modes = 20,      # (generic `psi_nb_modes`
     # Number of iteration. Total duration is nb_iter / framerate
     nb_iter = 600,      # (generic `nb_iter`
      # [Hz] framerate of the sensing & correction
-    framerate = 10,     # (generic `psi_framerate`
+    framerate = 1,     # (generic `psi_framerate`
 
     # modal basis: zern, dh, gendrinou
     modal_basis = 'zern',
 
     # Control gains
-    gain_I=0.45, #0.2 for IMG # Integrator gain
-    gain_P=0.45, #0.1 for IMG # Proportional gain
+    gain_I=0.9, #0.2 for IMG # Integrator gain
+    gain_P=0.0, #0.1 for IMG # Proportional gain
 
     # Saving results
     save_loop_statistics=False,
@@ -158,8 +158,8 @@ conf = dict(
 
     # # Focal plane filtering sigma (Gaussian blurring)
     # #   and radius [lambda / D]
-    # psi_filt_sigma=0.05,
-    # psi_filt_radius=15,
+    psi_filt_sigma=0.05,
+    psi_filt_radius=10,
 
     # # PSI scaling if do not want to use 'auto scaling'
     # #   default is None, otherwise expected NCPA in [nm]

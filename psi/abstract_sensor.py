@@ -343,6 +343,9 @@ class AbstractSensor():
                            phase.shaped,
                            interval=inter, ax=ax4)
 
+        if self.cfg.params.inst_mode  =='CVC':
+            ax4.contour(self.inst.lyot_stop_mask.shaped, colors=['red'], levels=[0.5], linewidths=2)
+
         ax1.set_axis_off()
         ax2.set_axis_off()
         ax3.set_axis_off()

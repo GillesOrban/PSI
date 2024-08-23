@@ -107,7 +107,7 @@ class dataGen():
 
         if store_data:
             filename = self.config['dataset_path'] + '/ds_{}.h5'.format(tag_name)
-            if self._inst._inst_mode =='IMG':
+            if self._inst._inst_mode =='IMG' or self._inst._inst_mode =='SPP':
                 asym_stop = self._inst.aperture.shaped
             else:
                 asym_stop=self._inst.lyot_stop_mask

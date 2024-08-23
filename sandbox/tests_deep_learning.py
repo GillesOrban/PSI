@@ -22,7 +22,8 @@ test_model_with_dataset = False
 if check_dataset:
     # Check dataset
     datadir = '/mnt/disk12tb/METIS/PSI/datasets/'
-    f_dataset = 'ds_METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_15%_Z20_s1e+04_r1.h5'
+    # f_dataset = 'ds_METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_15%_Z20_s1e+04_r1.h5'
+    f_dataset = 'ds_METIS_L_SPP_mag=6_bw=0.0_mask=AP2_Z100_s1e+04_nds.h5'
     db, attrs = rt.read_h5(datadir + f_dataset)
 
     print('Input WV phase screen cube : {0}'.format(attrs['phasescreen_fname']))
@@ -174,8 +175,8 @@ if test_model:
     #model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_r1'
     #model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=one_spider_20%_Z20_s1e+04_nds'
     # model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_nds_v1_t0'
-    model_tag = 'METIS_N2_CVC_mag=0_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_nds'
-
+    # model_tag = 'METIS_N2_CVC_mag=0_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_nds'
+    model_tag = 'METIS_N2_CVC_mag=-4_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_nds'
 
     dir_model = '/mnt/disk12tb/METIS/PSI/models/'
     model_path = dir_model + model_tag + '/'
@@ -201,11 +202,11 @@ if test_model:
     gen = deep_sensor.generator
     inst = deep_sensor.inst
 
-    inst.include_residual_turbulence = False
-    inst.include_water_vapour = True
-    inst.ncpa_dynamic = False
-    # inst.phase_wv *= 0
-    inst.phase_ncpa *= 0
+    # inst.include_residual_turbulence = False
+    # inst.include_water_vapour = True
+    # inst.ncpa_dynamic = False
+    # # inst.phase_wv *= 0
+    # inst.phase_ncpa *= 0
 
 
     # evaluator = deep_sensor.evaluator

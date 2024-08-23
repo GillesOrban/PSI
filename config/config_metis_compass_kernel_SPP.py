@@ -60,6 +60,7 @@ conf = dict(
     # f_apodizer=_tmp_dir + 'pupil/apo_ring_r=0.5190_t=0.7909.fits',
     #       -- SPP apodizer
     f_apodizer=_tmp_dir + 'pupil/SP_AP2_rot.fits',
+    # f_apodizer=_tmp_dir + 'pupil/SP_IWA=3.25_CST=0.2_THR=0.34.fits',  #'pupil/SP_AP2_rot.fits',
 
     # ======
     #    Photometry

@@ -16,7 +16,8 @@ import glob, os
 check_dataset = False
 check_datasets_attrs = False
 check_wavefront_projection = False
-test_model = True
+check_scao_modal_basis = True
+test_model = False
 test_model_with_dataset = False
 
 if check_dataset:
@@ -170,6 +171,50 @@ if check_wavefront_projection:
     # aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(inst.pupilGrid)
     # tmpGrid = inst.pupilGrid.copy().scale(1/grid_diam)
     # aper *= inst._asym_mask(tmpGrid)
+
+
+if check_scao_modal_basis:
+    # check wavefront cube and projection
+    config_file='config/config_deep_learning.py'
+    ncpa_folder='/mnt/disk12tb/METIS/PSI/legacy/TestArea/NCPA_Tibor/'
+    turb_folder='/mnt/disk12tb/METIS/PSI/legacy/TestArea/COMPASSPhaseScreens/ThirdAttempt_Processed/'
+    wv_folder='/mnt/disk12tb/METIS/PSI/legacy/TestArea/WaterVapour/phases/'
+
+    datadir = '/mnt/disk12tb/METIS/PSI/WV_screens/'
+    fname_phase_dataset = 'cube_285_300nm_1e5.fits'
+    cube_phase_data = fits.getdata(datadir + fname_phase_dataset)
+
+
+    fname_phase_wv = 'cube_Cbasic_20210504_600s_100ms_0piston_meters_scao_only_285_WVNonly_qacits.fits'
+    cube_phase_wv = fits.getdata(wv_folder +  fname_phase_wv)
+
+    save_basedir='/home/gorban/'
+    deep_sensor = DeepSensor(config_file)
+    deep_sensor.cfg.params.ncpa_folder = ncpa_folder
+    deep_sensor.cfg.params.turb_folder = turb_folder
+    deep_sensor.cfg.params.wv_folder = wv_folder
+    deep_sensor.cfg.params.save_basedir = save_basedir
+    deep_sensor.setup()
+    gen = deep_sensor.generator
+    inst = deep_sensor.inst
+    gen.setup(inst, deep_sensor.C2M, deep_sensor.cfg.params)
+
+    # scao_modes_raw = fits.getdata(datadir + '../modal_basis/20240708_Dfull_102modes_256_derot.fits')
+    # # renormalization of the modes
+    # scao_modes_raw *= 1e6
+    # scao_basis = hcipy.ModeBasis(np.reshape(scao_modes_raw, (102, 256*256)).T, 
+    #                                          deep_sensor.inst.pupilGrid)
+
+    # nmode_shift=2 # skip tip and tilt; the scao_basis does not include piston unlike in HCIPy
+    # M2C = scao_basis.transformation_matrix[:, nmode_shift:]
+    # C2M =hcipy.inverse_tikhonov(scao_basis.transformation_matrix,
+    #                             1e-3)[nmode_shift:,:]
+
+    # extract modes from M2C 
+    modes = np.reshape(deep_sensor.M2C, (256, 256, 20))
+    
+
+
 
 if test_model:
     #model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_r1'

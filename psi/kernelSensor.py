@@ -334,108 +334,89 @@ class KernelSensor(AbstractSensor):
             nmode_shift  :    int
                 by default skip the first 3 modes, ie piston, tip and tilt
         '''
-        # diam = 1
-        # radial_cutoff = False
 
-        #----------------------------------------#
-        #-- For kernel discretized pupil
-        self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps)
+        if self.cfg.params.modal_basis == 'Dfull_modes':
+            # -- for instrument pupil
+            # assume modal basis and inst pupil have same dimensions
+            self.logger.info('Using the SCAO Dfull basis {0} with {1} modes'.format(os.path.basename(self.cfg.params.f_modal_basis),
+                                                                                    nbOfModes))
 
-        # if self.cfg.params.modal_basis == 'zern':
-        #     # nmode_shift = 3 # 3 means, will skip piston, tip, tilt
-        #     self.M2C_small = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
-        #                                             self.smallGrid,
-        #                                             1,
-        #                                             radial_cutoff=radial_cutoff)
-        # elif self.cfg.params.modal_basis=='gendrinou':
-        #     nmode_shift = nmode_shift - 1  # (no piston in this basis)
-        #     nAct = int(np.ceil(np.sqrt(nbOfModes * 2.5)))
-        #     _, self.M2C_small = psi_utils.gendrinou_basis(self.smallGrid,
-        #                                                   self._small_aperture,
-        #                                                   nAct, nbOfModes+nmode_shift)
-        # else:
-        #     self.logger.error("{0} is not supported".format(self.cfg.params.modal_basis))
+            renormalize_modal_basis = 1e6 # from meters to microns
+            scao_modes_raw = fits.getdata(self.cfg.params.f_modal_basis) * renormalize_modal_basis
 
-        # mask = self._small_aperture.flatten()
-        # # mask[mask!=0] =1
-        # #if reortho:
-        # self.M2C_small = psi_utils.reorthonormalize(self.M2C_small,
-        #                                                 mask)
-        # self.M2C_matrix_small = self.M2C_small.transformation_matrix[:, nmode_shift:]
-        # # if any(np.isnan(self.M2C_matrix_large)):
-        # #     self.logger.warning('NaN in M2C small matrix, setting to 0s')
-        # #     self.M2C_matrix_small[np.isnan(self.M2C_matrix_large)] = 0  
+            nmode_shift -= 1 # assume that the scao basis does not include piston, unlike HCIPy
+            assert scao_modes_raw.shape[0] >= nbOfModes + nmode_shift
 
-        # self.C2M_small = hcipy.inverse_tikhonov(self.M2C_small.transformation_matrix,
-        #                                         1e-3)[nmode_shift:,:]
+            dim = scao_modes_raw.shape[1]
+            assert dim == self.inst.pupilGrid.dims[0], 'Pupil grid and modal basis have different dimensions'
+            scao_basis = hcipy.ModeBasis(np.reshape(scao_modes_raw[:nbOfModes+nmode_shift],
+                                                    (nbOfModes+nmode_shift, dim * dim)).T, 
+                                        self.inst.pupilGrid)
+            M2C = scao_basis.transformation_matrix[:, nmode_shift:]
+            C2M = hcipy.inverse_tikhonov(scao_basis.transformation_matrix,
+                                               1e-3)[nmode_shift:,:]
 
-        M2C, C2M = psi_utils.makeModalBasis(self.smallGrid,
-                                            nbOfModes,
-                                            nmode_shift,
-                                            reortho=reortho,
-                                            aperture=self._small_aperture.flatten(),
-                                            basis_name=self.cfg.params.modal_basis)
-        # self.M2C_basis = basis
-        self.M2C_matrix_small = M2C
-        self.C2M_small = C2M
+            self.M2C = M2C
+            self.C2M = C2M
 
-        #----------------------------------------#
-        #-- For instrument pupil
-        # if self.cfg.params.modal_basis == 'zern':
-        #     self.M2C_large = hcipy.make_zernike_basis(nbOfModes+nmode_shift, diam,
-        #                                           self.inst.pupilGrid, 1,
-        #                                           radial_cutoff=radial_cutoff)
-        # elif self.cfg.params.modal_basis=='gendrinou':
-        #     # nmode_shift = 2 # 2 means, will skip tip, tilt (no piston in the basis)
-        #     nAct = int(np.ceil(np.sqrt(nbOfModes * 2.5)))
-        #     _, self.M2C_large = psi_utils.gendrinou_basis(self.inst.pupilGrid,
-        #                                                   self.inst.aperture,
-        #                                                   nAct, nbOfModes+nmode_shift)
-        # else:
-        #     self.logger.error("{0} is not supported".format(self.cfg.params.modal_basis))
-        # # binary_aperture = np.copy(self.inst.aperture)
-        # # binary_aperture[self.inst.aperture >=0.5] = 1
-        # # binary_aperture[self.inst.aperture < 0.5] = 0
-        # if reortho:
-        #     if self.cfg.params.pupil == 'ELT':
-        #         grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
-        #         aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
-        #         aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
-        #         # aper *= self.inst._asym_mask(self.inst.pupilGrid)
-        #         tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
-        #         aper *= self.inst._asym_mask(tmpGrid)
-        #     else:
-        #         aper = self.inst.aperture
-        #     self.M2C_large = psi_utils.reorthonormalize(self.M2C_large,
-        #                                             aper)
-        # self.M2C_matrix_large = self.M2C_large.transformation_matrix[:, nmode_shift:]
-        # self.C2M_large =hcipy.inverse_tikhonov(self.M2C_large.transformation_matrix,
-        #                                        1e-3)[nmode_shift:,:]
-        
-        # self.M2C = self.M2C_matrix_large
-        # self.C2M = self.C2M_large
+            # -- for kernel discretized pupil
+            self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps)
+            # scao_modes_raw_small = psi_utils.resize_img(scao_modes_raw, self.cfg.params.asym_nsteps)
+            scao_modes_raw_small = psi_utils.resize_img(scao_modes_raw, self._nsteps)
 
-        self.logger.info('Initializing modal basis with {0} modes'.format(nbOfModes))
-        
-        aper=None
-        if reortho:
-            if self.cfg.params.pupil == 'ELT':
-                grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
-                aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
-                aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
-                tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
-                aper *= self.inst._asym_mask(tmpGrid)
-            else:
-                aper = self.inst.aperture
-        M2C, C2M = psi_utils.makeModalBasis(self.inst.pupilGrid,
-                                            nbOfModes,
-                                            nmode_shift,
-                                            reortho=reortho,
-                                            aperture=aper,
-                                            basis_name=self.cfg.params.modal_basis)
-        # self.M2C_basis = basis
-        self.M2C = M2C
-        self.C2M = C2M
+            dim = scao_modes_raw_small.shape[1]
+            scao_basis_small = hcipy.ModeBasis(np.reshape(scao_modes_raw_small[:nbOfModes+nmode_shift],
+                                                          (nbOfModes+nmode_shift, dim * dim)).T, 
+                                              self.smallGrid)
+            M2C_small = scao_basis_small.transformation_matrix[:, nmode_shift:]
+            C2M_small = hcipy.inverse_tikhonov(scao_basis_small.transformation_matrix,
+                                               1e-3)[nmode_shift:,:]
+            
+            if self.cfg.params.inst_mode == 'SPP':
+                self.logger.warn('SPP mask not used to compute M2C and C2M / M2C_small and C2M_small')
+
+            self.M2C_matrix_small = M2C_small
+            self.C2M_small = C2M_small
+
+        else:
+            #----------------------------------------#
+            #-- For kernel discretized pupil
+            self.smallGrid = hcipy.make_pupil_grid(self.cfg.params.asym_nsteps)
+
+            M2C, C2M = psi_utils.makeModalBasis(self.smallGrid,
+                                                nbOfModes,
+                                                nmode_shift,
+                                                reortho=reortho,
+                                                aperture=self._small_aperture.flatten(),
+                                                basis_name=self.cfg.params.modal_basis)
+            self.M2C_matrix_small = M2C
+            self.C2M_small = C2M
+
+            if self.cfg.params.inst_mode == 'SPP':
+                self.logger.warn('SPP mask used to reorthogonalize M2C_small and C2M_small but not to compute M2C and C2M')
+            #----------------------------------------#
+            #-- For instrument pupil
+            self.logger.info('Initializing modal basis with {0} modes'.format(nbOfModes))
+            
+            aper=None
+            if reortho:
+                if self.cfg.params.pupil == 'ELT':
+                    grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
+                    aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
+                    aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
+                    tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
+                    aper *= self.inst._asym_mask(tmpGrid)
+                else:
+                    aper = self.inst.aperture
+            M2C, C2M = psi_utils.makeModalBasis(self.inst.pupilGrid,
+                                                nbOfModes,
+                                                nmode_shift,
+                                                reortho=reortho,
+                                                aperture=aper,
+                                                basis_name=self.cfg.params.modal_basis)
+            # self.M2C_basis = basis
+            self.M2C = M2C
+            self.C2M = C2M
 
     # def _modalFilteringOnEP(self, ncpa_estimate):
     #     '''

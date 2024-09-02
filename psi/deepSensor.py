@@ -14,6 +14,7 @@ from .helperFunctions import LazyLogger, timeit, build_directory_name, \
 from astropy.visualization import imshow_norm,\
     SqrtStretch, MinMaxInterval, PercentileInterval, \
     LinearStretch, SinhStretch, LogStretch, ManualInterval
+import astropy.io.fits as fits
 
 from psi.deep_wfs.dataset_generator import dataGen
 from psi.deep_wfs.training_model import dataTrain
@@ -92,26 +93,44 @@ class DeepSensor(AbstractSensor):
     def _initModalBasis(self, nbOfModes=20, nmode_shift=3, reortho=True):
         self.logger.info('Initializing modal basis with {0} modes'.format(nbOfModes))
         
-        aper=None
-        if reortho:
-            if self.cfg.params.pupil == 'ELT':
-                grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
-                aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
-                aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
-                if self.cfg.params.inst_mode == 'IMG' or \
-                        self.cfg.params.inst_mode == 'APP' or \
-                        self.cfg.params.inst_mode == 'SPP':
-                    self.logger.warn('Include asymmetry in dummy pupil to compute M2C and C2m')
-                    tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
-                    aper *= self.inst._asym_mask(tmpGrid)
-            else:
-                aper = self.inst.aperture
-        M2C, C2M = psi_utils.makeModalBasis(self.inst.pupilGrid,
-                                            nbOfModes,
-                                            nmode_shift,
-                                            reortho=reortho,
-                                            aperture=aper,
-                                            basis_name='zern')
+        if self.cfg.params.modal_basis == 'Dfull_modes':
+            self.logger.info('Using the SCAO Dfull basis {0} with {1} modes'.format(os.path.basename(self.cfg.params.f_modal_basis),
+                                                                                    nbOfModes))
+
+            renormalize_modal_basis = 1e6 # from meters to microns
+            scao_modes_raw = fits.getdata(self.cfg.params.f_modal_basis) * renormalize_modal_basis
+            nmode_shift -= 1 # assume that the scao basis does not include piston, unlike HCIPy
+            assert scao_modes_raw.shape[0] >= nbOfModes + nmode_shift
+            dim = scao_modes_raw.shape[1]
+            assert dim == self.inst.pupilGrid.dims[0], 'Pupil grid and modal basis have different dimensions'
+            scao_basis = hcipy.ModeBasis(np.reshape(scao_modes_raw[:nbOfModes+nmode_shift],
+                                                    (nbOfModes+nmode_shift, dim * dim)).T, 
+                                         self.inst.pupilGrid)
+            M2C = scao_basis.transformation_matrix[:, nmode_shift:]
+            C2M =hcipy.inverse_tikhonov(scao_basis.transformation_matrix,
+                                1e-3)[nmode_shift:,:]
+        else:
+            aper=None
+            if reortho:
+                if self.cfg.params.pupil == 'ELT':
+                    grid_diam = self.inst.pupilGrid.delta[0] * self.inst.pupilGrid.dims[0]
+                    aper = hcipy.aperture.make_circular_aperture(0.98 * grid_diam)(self.inst.pupilGrid)
+                    aper -= hcipy.aperture.make_circular_aperture(0.25 * grid_diam)(self.inst.pupilGrid)
+                    if self.cfg.params.inst_mode == 'IMG' or \
+                            self.cfg.params.inst_mode == 'APP' or \
+                            self.cfg.params.inst_mode == 'SPP':
+                        self.logger.warn('Include asymmetry in dummy pupil to compute M2C and C2m')
+                        tmpGrid = self.inst.pupilGrid.copy().scale(1/grid_diam)
+                        aper *= self.inst._asym_mask(tmpGrid)
+                else:
+                    aper = self.inst.aperture
+            M2C, C2M = psi_utils.makeModalBasis(self.inst.pupilGrid,
+                                                nbOfModes,
+                                                nmode_shift,
+                                                reortho=reortho,
+                                                aperture=aper,
+                                                basis_name=self.cfg.params.modal_basis)
+                                                #basis_name='zern')
         
         # self.aperture_modal_basis = aper
         # self.M2C_basis = basis

@@ -1,6 +1,7 @@
 from psi.kernelSensor import KernelSensor
 import numpy as np
 config_file='config/config_metis_compass_kernel_SPP.py'
+
 kernel = KernelSensor(config_file)
 
 kernel.setup()
@@ -16,3 +17,9 @@ kernel.evaluateSensorEstimate()
 
 # kernel.loop(leak=1, modal_gains=modal_gains)
 kernel.next()
+
+'''
+modes = np.reshape(kernel.M2C, (256, 256, 100))
+modes_small = np.reshape(kernel.M2C_matrix_small,
+           (kernel._nsteps, kernel._nsteps, 100))
+'''

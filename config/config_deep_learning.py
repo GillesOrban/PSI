@@ -101,8 +101,9 @@ conf = dict(
      # [Hz] framerate of the sensing & correction
     framerate = 10,     # (generic `psi_framerate`)
 
-    # modal basis: zern, dh, gendrinou
-    modal_basis = 'zern',
+    # modal basis: zern, dh, gendrinou, 'Dfull_modes'
+    modal_basis = 'Dfull_modes',  
+    f_modal_basis = '/mnt/disk12tb/METIS/PSI/modal_basis/' + '20240708_Dfull_102modes_256_derot.fits',
 
     # Control gains
     gain_I=1, #0.45, #0.2 for IMG # Integrator gain

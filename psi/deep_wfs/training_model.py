@@ -14,6 +14,11 @@ from psi.helperFunctions import LazyLogger
 import matplotlib.pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 
+try:
+    from sam import SAM
+    from psi.deep_wfs.src.bypass_bn import enable_running_stats, disable_running_stats
+except:
+    print('SAM not installed. See here: https://github.com/davda54/sam')
 
 # rt = readTools()
 # fmt = _fmt()
@@ -114,15 +119,27 @@ class dataTrain:
         if self.config["optimizer_name"] == 'Adam':
             optimizer = optim.Adam(params=self.model_to_train.parameters(),
                                 lr=float(self.config["learning_rate"]))
+                    # TODO: (review) Defining the scheduler:
+            optim_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,
+                                                            mode='min',
+                                                            factor=0.5,
+                                                            patience=self.config["lr_patience"])
+        elif self.config["optimizer_name"] == 'SAM':
+            base_optimizer = optim.Adam
+            optimizer = SAM(self.model_to_train.parameters(),
+                            base_optimizer,
+                            lr=float(self.config["learning_rate"]),
+                            adaptive=True, rho=0.5) # using ASAM with a 10x higher rho.
+                    # TODO: (review) Defining the scheduler:
+            optim_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer.base_optimizer,
+                                                            mode='min',
+                                                            factor=0.5,
+                                                            patience=self.config["lr_patience"])
         else:
             self.logger.error("Chosen optimizer is not implemented")
             raise ValueError("the optimizer specified is not valid (must be either 'Adam' )")
 
-        # TODO: (review) Defining the scheduler:
-        optim_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer,
-                                                            mode='min',
-                                                            factor=0.5,
-                                                            patience=self.config["lr_patience"])
+
         # Defining the metrics dictionary:
         metric_dict = {
             'model_dir': self.config["model_dir"],
@@ -186,15 +203,27 @@ class dataTrain:
                 # The backward() function accumulates gradients -> zero_grad() not to mix up gradients between minibatches
                 optimizer.zero_grad()
 
+
                 # Forward propagation: enable gradient calculation only if train
                 with torch.set_grad_enabled(True):
+                    if self.config["optimizer_name"] == 'SAM':
+                        enable_running_stats(self.model_to_train)
                     # 1. Making prediction:
-                    estimation = self.model_to_train(inputs)
+                    # estimation = self.model_to_train(inputs)
                     # 2. Computing the loss for the current batch:
-                    loss = loss_function(torch.squeeze(estimation), torch.squeeze(ground_truth))
+                    loss = loss_function(torch.squeeze(self.model_to_train(inputs)),
+                                         torch.squeeze(ground_truth))
                     # Backward propagation
                     loss.backward()
-                    optimizer.step()
+
+                    if self.config["optimizer_name"] == 'SAM':
+                        optimizer.first_step(zero_grad=True)
+                        disable_running_stats(self.model_to_train)
+                        loss_function(torch.squeeze(self.model_to_train(inputs)),
+                                             torch.squeeze(ground_truth)).backward()
+                        optimizer.second_step(zero_grad=True)
+                    else:
+                        optimizer.step()
 
                 train_loss_batch += 1 * loss.item() * inputs.size(0)
                 del loss  # delete loss object to save memory
@@ -319,8 +348,10 @@ class dataTrain:
             conf_file = os.path.dirname(__file__) + "/config/training_config.yml"
             self.config = rt.read_conf(conf_file=conf_file)
         else:
-            self.config = conf_file
-        
+            # self.config = conf_file
+            pass
+        self.config = rt.read_conf(conf_file=conf_file)
+
         if training_data_fname is not None:
             self.config["training_data_fname"] = training_data_fname
 

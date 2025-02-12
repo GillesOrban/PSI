@@ -12,13 +12,14 @@ import numpy as np
 import psi.deep_wfs.utils.read_data as rt
 import astropy.io.fits as fits
 import glob, os
+import time
 
 check_dataset = False
 check_datasets_attrs = False
 check_wavefront_projection = False
-check_scao_modal_basis = True
+check_scao_modal_basis = False
 test_model = False
-test_model_with_dataset = False
+test_model_with_dataset = True
 
 if check_dataset:
     # Check dataset
@@ -85,9 +86,6 @@ if check_wavefront_projection:
     gen = deep_sensor.generator
     inst = deep_sensor.inst
     gen.setup(inst, deep_sensor.C2M, deep_sensor.cfg.params)
-
-
-
 
     inst.include_residual_turbulence = False
     inst.include_water_vapour = False
@@ -265,7 +263,10 @@ if test_model:
     modal_gains=np.linspace(0.5, 1, num=nb_modes)[::-1]
 
 if test_model_with_dataset:
-    model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_r1'
+    # NB: model is using RESNET-34 -- make sur my yaml config match the resnet depth.
+    # model_tag = 'METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_r1'
+    # More recent alternative using RESNET-18
+    model_tag = 'METIS_N2_CVC_mag=-4_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_nds_sam'
     f_dataset = 'ds_METIS_N2_CVC_mag=-2_bw=0.0_mask=two_lyot_20%_Z20_s1e+04_r1.h5'
     ds_datadir = '/mnt/disk12tb/METIS/PSI/datasets/'
 
@@ -297,12 +298,20 @@ if test_model_with_dataset:
     noise = 2
     num_photons = deep_sensor.getFluxInFocalPlane() / 10000 #self.inst.num_photons
     bckg_level = deep_sensor.inst.bckg_level
+
+    elapsed_time =[]
     for i in range(n_tests):
         modes_truth[i] = db['zernike_coefficients'][i]
+        start_time = time.time()
         modes_meas[i] = evaluator.infer(psfs[i][np.newaxis, :, :],
                                         noise=noise,
                                         signal=num_photons,
                                         bckg=bckg_level).squeeze()
+        end_time = time.time()
+        elapsed_time.append(end_time - start_time)
+
+    elapsed_time.pop(0)
+    elapsed_time = np.array(elapsed_time)
 
     err = np.sqrt(np.mean((modes_meas - modes_truth)**2, axis=0))
     std_truth = np.std(modes_truth, axis=0)
@@ -314,6 +323,12 @@ if test_model_with_dataset:
     plt.semilogy()
     print('Total error {0:.1f}nm'.format(np.sqrt(np.sum(err**2))))
 
+    plt.figure()
+    plt.hist(elapsed_time, bins=n_tests//10, edgecolor='black')
+    plt.title('Histogram of Computation Times')
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Frequency')
+    plt.show()
 
 modes_truth = np.array(deep_sensor._log_modes_truth)
 modes_meas = np.array(deep_sensor._log_modes_meas)

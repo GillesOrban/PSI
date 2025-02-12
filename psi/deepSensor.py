@@ -139,7 +139,8 @@ class DeepSensor(AbstractSensor):
 
     def buildModel(self, tag_name,
                    regenerate=False, retrain=False, auto_train=False,
-                   model_path=None, nb_samples=None, nb_modes=None):
+                   model_path=None, nb_samples=None, nb_modes=None,
+                   conf_trainer=None, conf_generator=None, conf_inference=None):
         '''
         Prepare the CNN framework.
         Generate data if necessary
@@ -176,7 +177,7 @@ class DeepSensor(AbstractSensor):
         '''
         # 1. Data generation
         self.logger.info('1. Data generation')
-        self.generator.setup(self.inst, self.C2M, self.cfg.params)
+        self.generator.setup(self.inst, self.C2M, self.cfg.params, conf_file=conf_generator)
         if nb_samples is not None:
             self.logger.info('Setting the number of samples to {0}'.format(nb_samples))
             self.generator.config['nb_samples'] = nb_samples
@@ -205,9 +206,9 @@ class DeepSensor(AbstractSensor):
         # 2. Training
         self.logger.info('2. Training')
         if model_path is not None:
-            self.trainer.setup(training_data_fname=data_file, model_dir=model_path)
+            self.trainer.setup(training_data_fname=data_file, model_dir=model_path, conf_file=conf_trainer)
         else:
-            self.trainer.setup(training_data_fname=data_file)
+            self.trainer.setup(training_data_fname=data_file, conf_file=conf_trainer)
         self.logger.info('Model path is {0}'.format(model_path))
         model_path = self.trainer.config['model_dir']
         model_file = model_path + '/model.pth'
@@ -235,7 +236,7 @@ class DeepSensor(AbstractSensor):
                                     bckg=bckg_level) 
 
         # 3. Inference setup
-        self.init_evaluator(model_fname=model_path)
+        self.init_evaluator(model_fname=model_path, conf_inference=conf_inference)
         # self.logger.info('3. Preparing for inference')
         # self.evaluator.setup(model_data_path=model_path)
         # self._wavelength = self.evaluator.data_info['wavelength'] # required for consistency
@@ -266,9 +267,9 @@ class DeepSensor(AbstractSensor):
         # else:
         #     self.logger.warn('Cannot check simulation configuration')
 
-    def init_evaluator(self, model_fname=None):
+    def init_evaluator(self, model_fname=None, conf_inference=None):
         self.logger.info('Preparing for inference')
-        self.evaluator.setup(model_data_path=model_fname+'/')
+        self.evaluator.setup(model_data_path=model_fname+'/', conf_file=conf_inference)
         self._wavelength = self.evaluator.data_info['wavelength'] # required for consistency
 
         # 3.1 Check consistency between CNN config / data_info and the current sim config

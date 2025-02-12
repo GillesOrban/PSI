@@ -17,7 +17,7 @@ import psi.deep_wfs.utils.dataset_format_pytorch as datapp
 import psi.deep_wfs.utils.read_data as rt
 from psi.deep_wfs.utils.dataset_format_pytorch import normalization
 from psi.helperFunctions import LazyLogger
-
+from collections import OrderedDict
 # rt = readTools()
 
 
@@ -108,15 +108,36 @@ class dataInfer:
                         n_channels_out=data_info["nb_modes"],
                         resnet_archi=config["model_type"]).eval()  # Model set in evaluation mode (discard batch normalization)
 
+
         # Read and load the trained weights from existing file
         # if not os.path.isfile(config["model_dir"] + "model.pth"):
         #     raise FileNotFoundError("Model not found in the specified directory: " + config["model_dir"])
 
         if os.path.isfile(config["model_dir"] + "model.pth"):
             model_loc = config["model_dir"] + "model.pth"
-
+            
             state_dict = torch.load(model_loc, map_location=self.device)
+
             try:
+                # state_dict = torch.load(model_loc, map_location=self.device)
+                # # print("Checkpoint state_dict keys:", checkpoint.keys())
+                # # Remove 'module.' prefix if necessary
+                # # state_dict = checkpoint['state_dict']
+                # new_state_dict = OrderedDict()
+                # for k, v in state_dict.items():
+                #     name = k[7:] if k.startswith('module.') else k  # remove 'module.' prefix
+                #     new_state_dict[name] = v
+
+                # if self.device.type == 'cpu':
+                #     # Add 'module.' prefix to all keys
+                #     new_state_dict = OrderedDict()
+                #     for k, v in state_dict.items():
+                #         new_key = f"module.{k}"  # Add 'module.' prefix
+                #         new_state_dict[new_key] = v
+
+                #     # Load the modified state_dict into your model
+                #     model.load_state_dict(new_state_dict)
+                # else:
                 model.load_state_dict(state_dict)
             except RuntimeError:
                 # Necessary for loading the weights if trained with several GPUs
